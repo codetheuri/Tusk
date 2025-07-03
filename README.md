@@ -1,5 +1,5 @@
 # Build
-
+Tusk: the sharpest Go starter for building APIs
 ## Usage
 
 Create `.env` from template 
