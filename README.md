@@ -23,7 +23,16 @@ I build a lot of random projects—most of them never make it past localhost �
 This setup probably won’t work for everyone—or maybe even most people writing Go—but I’m putting it out there anyway.
 It’s mainly for my own sanity... and future me.
 
+## TODO / Improvements
+ Add CORS & Logging middleware
 
+ Add Docker support
+
+ Write tests for handlers and repo
+
+ Switch to chi or fiber later
+
+ Add Swagger/OpenAPI docs
 
 bye</br>
 
