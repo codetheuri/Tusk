@@ -1,0 +1,15 @@
+# binarries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# dependencies
+vendor/
+
+#configs
+.env 
+.idea/
+.vscode/
