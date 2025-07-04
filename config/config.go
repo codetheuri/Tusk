@@ -61,7 +61,7 @@ func LoadConfig() (*Config, error) {
 	}
 	serverPort, err := strconv.Atoi(serverPortStr)
 	if err != nil {
-		return nil, errors.ConfigError(fmt.Sprintf("Invalid SERVER_PORT value ", serverPort), err)
+		return nil, errors.ConfigError(fmt.Sprintf("Invalid SERVER_PORT value : %s", serverPortStr), err)
 	}
 	cfg.ServerPort = serverPort
 
