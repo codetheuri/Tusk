@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/codetheuri/todolist/internal/model"
-	"github.com/codetheuri/todolist/internal/repository"
-	"github.com/codetheuri/todolist/internal/utils"
+	"github.com/codetheuri/todolist/internal/app/models"
+	"github.com/codetheuri/todolist/internal/app/repositories"
+	"github.com/codetheuri/todolist/pkg/validators"
 )
 
 // var validate = validator.New()
@@ -30,7 +30,7 @@ func AddTodo(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	if !utils.ValidateAndRespond(w, &todo) {
+	if !validators.ValidateAndRespond(w, &todo) {
 		return
 	}
 	// if err := validate.Struct(todo); err != nil {
@@ -87,7 +87,7 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request, id int) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	if !utils.ValidateAndRespond(w, &todo) {
+	if !validators.ValidateAndRespond(w, &todo) {
 		return
 	}
 	if err := repository.UpdateTodo(id, todo); err != nil {
@@ -95,7 +95,7 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	
+
 	json.NewEncoder(w).Encode(todo)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Todo updated successfully"})
 

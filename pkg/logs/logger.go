@@ -1,0 +1,60 @@
+package logs
+
+import (
+	"log"
+	"os"
+)
+
+// Logger interface for logging operations
+type Logger interface {
+	Debug(msg string, args ...any)
+	Info(msg string, args ...any)
+	Warn(msg string, args ...any)
+	Error(msg string, err error, args ...any)
+	Fatal(msg string, err error, args ...any)
+}
+
+// logs to console
+type consoleLogger struct {
+	stdLogger *log.Logger
+}
+
+// NewConsoleLogger creates a new console logger
+func NewConsoleLogger() Logger {
+	return &consoleLogger{
+		stdLogger: log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile),
+	}
+}
+
+func(l *consoleLogger) Debug(msg string, args ...any){
+	l.stdLogger.Printf("[DEBUG] "+msg, args...)
+}
+
+func (l *consoleLogger) Info(msg string, args ...any) {
+	l.stdLogger.Printf("[INFO] "+msg, args...)
+}
+
+func (l *consoleLogger) Warn(msg string, args ...any) {
+	l.stdLogger.Printf("[WARN] "+msg, args...)
+}
+
+func (l *consoleLogger) Error(msg string, err error, args ...any) {
+	if err != nil {
+		l.stdLogger.Printf("[ERROR] "+msg+": %v", append(args, err)...)
+	} else {
+		l.stdLogger.Printf("[ERROR] "+msg, args...)
+	}
+}
+
+func (l *consoleLogger) Fatal(msg string, err error, args ...any) {
+	l.Error(msg, err, args...)
+	os.Exit(1)
+}
+
+//global logger instance
+var globalLogger Logger = NewConsoleLogger()
+
+// GetLogger returns the global logger instance
+func GetLogger() Logger {
+	return globalLogger
+}

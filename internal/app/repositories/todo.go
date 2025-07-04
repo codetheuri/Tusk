@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/codetheuri/todolist/config"
-	"github.com/codetheuri/todolist/internal/model"
+	"github.com/codetheuri/todolist/internal/app/models"
 )
 
 func GetAllTodos() ([]model.Todo, error) {

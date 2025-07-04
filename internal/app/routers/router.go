@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/codetheuri/todolist/internal/handler"
+	"github.com/codetheuri/todolist/internal/app/handlers"
 )
 
 func SetupRouter() {
