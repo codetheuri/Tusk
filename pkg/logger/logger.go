@@ -1,8 +1,9 @@
-package logs
+package logger
 
 import (
 	"log"
 	"os"
+	"sync"
 )
 
 // Logger interface for logging operations
@@ -26,7 +27,7 @@ func NewConsoleLogger() Logger {
 	}
 }
 
-func(l *consoleLogger) Debug(msg string, args ...any){
+func (l *consoleLogger) Debug(msg string, args ...any) {
 	l.stdLogger.Printf("[DEBUG] "+msg, args...)
 }
 
@@ -51,10 +52,21 @@ func (l *consoleLogger) Fatal(msg string, err error, args ...any) {
 	os.Exit(1)
 }
 
-//global logger instance
-var globalLogger Logger = NewConsoleLogger()
+// global logger instance
+var (
+	globalLogger Logger = NewConsoleLogger()
+	loggerMuteex sync.RWMutex
+)
 
 // GetLogger returns the global logger instance
 func GetLogger() Logger {
+	loggerMuteex.RLock()
+	defer loggerMuteex.RUnlock()
 	return globalLogger
+}
+
+func SetGlobalLogger(l Logger) {
+	loggerMuteex.Lock()
+	defer loggerMuteex.Unlock()
+	globalLogger = l
 }
