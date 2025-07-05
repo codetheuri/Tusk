@@ -24,7 +24,10 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	}
 
 	log.Info("Running migrations...")
-	
+	// err = db.Migrator().CreateTable(&models.Todo{})
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create table: %w", err)
+	// }
 	if err := db.AutoMigrate(&models.Todo{}); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -52,13 +55,34 @@ case http.MethodPost:
 				return
 			}
 			web.RespondJSON(w, http.StatusCreated, createdTodo)
-		case http.MethodGet:
-			todos, err := todoRepo.GetAllTodos()
-			if err != nil {
-				web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
+		// case http.MethodGet:
+		// 	todos, err := todoRepo.GetAllTodos()
+		// 	if err != nil {
+		// 		web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
+		// 		return
+		// 	}
+		// 	web.RespondJSON(w, http.StatusOK, todos)
+	   case http.MethodGet:
+			idStr := r.URL.Query().Get("id")
+			if idStr == "" {
+				web.RespondError(w, errors.New("ID is required"), http.StatusBadRequest)
 				return
 			}
-			web.RespondJSON(w, http.StatusOK, todos)
+			id, err := strconv.ParseUint(idStr, 10, 32)
+			if err != nil {
+				web.RespondError(w, errors.New("Invalid ID format"), http.StatusBadRequest)
+				return
+			}
+			todo, err := todoRepo.GetTodoByID(uint(id))	
+			if err != nil {
+				web.RespondError(w, errors.New("Failed to get test todo"), http.StatusInternalServerError)
+				return
+			}
+			if todo == nil {
+				web.RespondError(w, errors.New("Todo not found"), http.StatusNotFound)
+				return
+			}
+			web.RespondJSON(w, http.StatusOK, todo)	
 		case http.MethodPut:
 			var updatedTodo models.Todo
 			if err := json.NewDecoder(r.Body).Decode(&updatedTodo); err != nil {
