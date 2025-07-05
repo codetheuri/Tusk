@@ -1,7 +1,10 @@
-package model
+package models
+
+import "gorm.io/gorm"
 
 type Todo struct {
-	ID  int `json:"id"`
-	Title string `json:"title" validate:"required,min=3"`
-	Completed  bool  `json:"completed"`
+	gorm.Model
+	Title string `json:"title" gorm:"not null"`
+	Description string `json:"description"`
+	Completed  bool  `json:"completed" gorm:"default:false"`
 }

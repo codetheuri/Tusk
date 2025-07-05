@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/codetheuri/todolist/internal/app/models"
-	"github.com/codetheuri/todolist/internal/app/repositories"
 	"github.com/codetheuri/todolist/pkg/validators"
 )
 
 // var validate = validator.New()
 
 func GetTodos(w http.ResponseWriter, r *http.Request) {
-	todos, err := repository.GetAllTodos()
+	todos, err := repositories.GetAllTodos()
 	if err != nil {
 		http.Error(w, "something went wrong", http.StatusInternalServerError)
 		return
