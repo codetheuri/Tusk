@@ -8,7 +8,7 @@ import (
 	"github.com/codetheuri/todolist/internal/app/repositories"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
-	"github.com/go-playground/validator/v10"
+	"github.com/codetheuri/todolist/pkg/validators"
 )
 
 // interface
@@ -45,15 +45,15 @@ type TodoResponse struct {
 // implement TodoService interface
 type todoService struct {
 	repo      repositories.TodoRepository
-	validator validator.Validate
+	validator *validators.Validator
 	log       logger.Logger
 }
 
 // new todo service instance
-func NewTodoService(repo repositories.TodoRepository,  log logger.Logger) TodoService {
+func NewTodoService(repo repositories.TodoRepository, validator *validators.Validator, log logger.Logger) TodoService {
 	return &todoService{
 		repo:      repo,
-		// validator: validator,
+		validator: validator,
 		log:       log,
 	}
 }
@@ -61,9 +61,10 @@ func NewTodoService(repo repositories.TodoRepository,  log logger.Logger) TodoSe
 // CreateTodo
 func (s *todoService) CreateTodo(createReq *CreateTodoRequest) (*TodoResponse, error) {
 	//validate
-	if err := s.validator.Struct(createReq); err != nil {
-		s.log.Warn("validation failed for create todo request", "error", err)
-		return nil, appErrors.ValidationError("invalid todo data", err)
+	fieldErrors := s.validator.Struct(createReq)
+	if fieldErrors != nil {
+		s.log.Warn("validation failed for create todo request", "error", fieldErrors)
+		return nil, appErrors.ValidationError("invalid todo data", nil, fieldErrors)
 	}
 
 	//logic
@@ -80,14 +81,15 @@ func (s *todoService) CreateTodo(createReq *CreateTodoRequest) (*TodoResponse, e
 
 		var dbErr appErrors.AppError
 		if errors.As(err, &dbErr) && dbErr.Code() == "DATABASE_ERROR" {
-            return nil, appErrors.New("CREATE_FAILED","failed to create todo due to database issue", err)
+			return nil, appErrors.New("CREATE_FAILED", "failed to create todo due to database issue", err)
 		}
-		return nil , err
+		return nil, err
 	}
 	return s.toTodoResponse(createdTodo), nil
 }
 func (s *todoService) GetTodoByID(id uint) (*TodoResponse, error) {
 	//fetch
+
 	todo, err := s.repo.GetTodoByID(id)
 	if err != nil {
 		s.log.Error("service: failed to get todo by id", err, "id", id)
@@ -100,77 +102,79 @@ func (s *todoService) GetTodoByID(id uint) (*TodoResponse, error) {
 	//map to response
 	return s.toTodoResponse(todo), nil
 }
+
 // get all
-func (s *todoService) GetAllTodos() ([]TodoResponse, error){
+func (s *todoService) GetAllTodos() ([]TodoResponse, error) {
 	//fetch
 	todos, err := s.repo.GetAllTodos()
-	if err != nil{
+	if err != nil {
 		s.log.Error("service : failed to get all todos ", err)
 		return nil, err
 	}
-	//map models 
+	//map models
 	var todoResponses []TodoResponse
-	for _, todo:= range todos{
+	for _, todo := range todos {
 		todoResponses = append(todoResponses, *s.toTodoResponse(&todo))
 	}
 	return todoResponses, nil
 }
-//update
-func (s *todoService) UpdateTodo(updateReg *UpdateTodoRequest)(*TodoResponse, error){
+
+// update
+func (s *todoService) UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, error) {
 	//validate\
-	if err := s.validator.Struct(updateReg); err!=nil{
-		s.log.Warn("validation failed ", "error", err)
-		return nil, appErrors.ValidationError("invalid todo data", err)
+	fieldErrors := s.validator.Struct(updateReq)
+	if fieldErrors != nil {
+		s.log.Warn("validation failed ", "error", fieldErrors)
+		return nil, appErrors.ValidationError("invalid todo data", nil, fieldErrors)
 	}
 
 	//fetch existing
-	existingTodo, err := s.repo.GetTodoByID(updateReg.ID)
-	if err != nil{
-		s.log.Error("service : failed to get data", err, "id", updateReg.ID)
+	existingTodo, err := s.repo.GetTodoByID(updateReq.ID)
+	if err != nil {
+		s.log.Error("service : failed to get data", err, "id", updateReq.ID)
 		var notFoundErr appErrors.AppError
-		if errors.As(err, &notFoundErr) && notFoundErr.Code() =="NOT_FOUND"{
-			return nil, appErrors.NotFoundError(fmt.Sprintf("todo with id %d not found", updateReg.ID), err)
+		if errors.As(err, &notFoundErr) && notFoundErr.Code() == "NOT_FOUND" {
+			return nil, appErrors.NotFoundError(fmt.Sprintf("todo with id %d not found", updateReq.ID), err)
 		}
 		return nil, err
 	}
 	//update fields
-	if updateReg.Title != "" {
-		existingTodo.Title = updateReg.Title
+	if updateReq.Title != "" {
+		existingTodo.Title = updateReq.Title
 	}
-	if updateReg.Description != "" {
-		existingTodo.Description = updateReg.Description
-	}
-	if updateReg.Completed != false{
-		existingTodo.Completed = updateReg.Completed
+	if updateReq.Completed != false {
+		existingTodo.Completed = updateReq.Completed
 	}
 	//persist
 	updatedTodo, err := s.repo.UpdateTodo(existingTodo)
 	if err != nil {
 		s.log.Error("service: failed to update todo in repository", err, "id", existingTodo.ID)
 		var dbErr appErrors.AppError
-		if errors.As(err, &dbErr) && dbErr.Code() == "DATABASE_ERROR"{
-			return nil, appErrors.New("UPDATE_FAILED", "failed to update due to database issue",err)
+		if errors.As(err, &dbErr) && dbErr.Code() == "DATABASE_ERROR" {
+			return nil, appErrors.New("UPDATE_FAILED", "failed to update due to database issue", err)
 		}
 		return nil, err
 	}
-	return s.toTodoResponse(updatedTodo),nil
+	return s.toTodoResponse(updatedTodo), nil
 }
-//delete
-func(s *todoService) DeleteTodo(id uint) error{
+
+// delete
+func (s *todoService) DeleteTodo(id uint) error {
 	// call
 	err := s.repo.DeleteTodo(id)
-	if err != nil{
+	if err != nil {
 		s.log.Error("serrvice: failed to delete todo from repository", err, "id", id)
 		var notFoundErr appErrors.AppError
-		if errors.As(err, &notFoundErr) && notFoundErr.Code()== "NOT_FOUND"{
-			return appErrors.NotFoundError(fmt.Sprintf("todo with  ID %d not found",id), err)
+		if errors.As(err, &notFoundErr) && notFoundErr.Code() == "NOT_FOUND" {
+			return appErrors.NotFoundError(fmt.Sprintf("todo with  ID %d not found", id), err)
 		}
 		return err
 	}
 	return nil
 }
-//helper convert models.Todo to TodoResponse
-func(s *todoService) toTodoResponse(todo *models.Todo) *TodoResponse{
+
+// helper convert models.Todo to TodoResponse
+func (s *todoService) toTodoResponse(todo *models.Todo) *TodoResponse {
 	return &TodoResponse{
 		ID:          todo.ID,
 		Title:       todo.Title,

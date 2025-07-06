@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
+
+	"github.com/codetheuri/todolist/pkg/validators"
 )
 
 func RespondJSON(w http.ResponseWriter, status int, data interface{}) {
@@ -23,6 +25,7 @@ func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
 	errorResponse := struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
+		Errors interface{} `json:"errors,omitempty"`
 	}{
 		Code:    "INTERNAL_SERVER_ERROR",
 		Message: "An unexpected error occurred",
@@ -35,6 +38,11 @@ func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
 	if errors.As(err, &appErr) {
 		errorResponse.Code = appErr.Code()
 		errorResponse.Message = appErr.Message()
+
+		// if it's a validation error, extract the field errors
+		if appErr.Code() == "VALIDATION_ERROR" {
+			statusCode = http.StatusUnprocessableEntity
+		}
 
 		// map specific error codes to HTTP status codes
 		switch appErr.Code() {

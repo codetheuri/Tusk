@@ -15,6 +15,8 @@ type appError struct {
 	code    string
 	message string
 	err     error
+
+	validationErrors interface{}
 }
 
 var _ AppError = (*appError)(nil)
@@ -35,6 +37,9 @@ func (e *appError) Message() string {
 }
 func (e *appError) Unwrap() error {
 	return e.err
+}
+func (e *appError) ValidationErrors() interface{} {
+	return e.validationErrors
 }
 
 // create a new generic application error
@@ -64,8 +69,13 @@ func NotFoundError(message string, err error) AppError {
 }
 
 // validation issues
-func ValidationError(message string, err error) AppError {
-	return New("VALIDATION_ERROR", message, err)
+func ValidationError(message string, err error, fieldErrors interface{}) AppError {
+	return &appError{
+		code:             "VALIDATION_ERROR",
+		message:          message,
+		err:              err,
+		validationErrors: fieldErrors,
+	}
 }
 
 // authentication issues
