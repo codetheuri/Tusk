@@ -8,6 +8,7 @@ type AppError interface {
 	Code() string
 	Message() string
 	Unwrap() error
+	GetValidationErrors() interface{}
 }
 
 // basic error implementation
@@ -38,7 +39,7 @@ func (e *appError) Message() string {
 func (e *appError) Unwrap() error {
 	return e.err
 }
-func (e *appError) ValidationErrors() interface{} {
+func (e *appError) GetValidationErrors() interface{} {
 	return e.validationErrors
 }
 

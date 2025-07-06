@@ -13,7 +13,7 @@ import (
 	"github.com/codetheuri/todolist/internal/platform/database"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
-	"github.com/go-playground/validator/v10"
+	"github.com/codetheuri/todolist/pkg/validators"
 
 	// "github.com/codetheuri/todolist/pkg/validators"
 	"github.com/codetheuri/todolist/pkg/web"
@@ -40,12 +40,12 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	//initialize the router
 
 	//initilialize app components
-	appValidator := validator.Validator()
+	appValidator := validators.NewValidator()
 
 	//initialize the repositories
 	todoRepo := repositories.NewGormTodoRepository(db, log)
 	//initilliaze services
-	todoService := services.NewTodoService(todoRepo, validator, log)
+	todoService := services.NewTodoService(todoRepo, appValidator, log)
 
 	router := http.NewServeMux()
 	// router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
