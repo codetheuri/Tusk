@@ -23,7 +23,7 @@ type consoleLogger struct {
 // NewConsoleLogger creates a new console logger
 func NewConsoleLogger() Logger {
 	return &consoleLogger{
-		stdLogger: log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile),
+		stdLogger: log.New(os.Stdout, "", log.Ldate|log.Ltime),
 	}
 }
 

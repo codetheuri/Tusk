@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,8 +9,12 @@ import (
 	"github.com/codetheuri/todolist/config"
 	"github.com/codetheuri/todolist/internal/app/models"
 	"github.com/codetheuri/todolist/internal/app/repositories"
+	"github.com/codetheuri/todolist/internal/app/services"
 	"github.com/codetheuri/todolist/internal/platform/database"
+	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+
+	// "github.com/codetheuri/todolist/pkg/validators"
 	"github.com/codetheuri/todolist/pkg/web"
 )
 
@@ -40,93 +43,91 @@ func Run(cfg *config.Config, log logger.Logger) error {
 
 	//initialize the repositories
 	todoRepo := repositories.NewGormTodoRepository(db, log)
+	//initilliaze services
+	todoService := services.NewTodoService(todoRepo,  log)
+
 	router := http.NewServeMux()
 	// router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 	// 	fmt.Fprintln(w, "Tusk is running! (Bootstrapped)")
 	// })
 
-	router.HandleFunc("/test-repo", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/test-service", func(w http.ResponseWriter, r *http.Request) {
+		// Log the request method for debugging
+		log.Debug("Received request to /test-service", "method", r.Method)
+
 		switch r.Method {
 		case http.MethodPost:
-			newTodo := &models.Todo{Title: "Test Todo", Description: "Created from /test-repo"}
-			createdTodo, err := todoRepo.CreateTodo(newTodo)
+			var req services.CreateTodoRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid request body", err), http.StatusBadRequest)
+				return
+			}
+			createdTodo, err := todoService.CreateTodo(&req) // <--- Call Service method!
 			if err != nil {
-				web.RespondError(w, errors.New("Failed to create test todo"), http.StatusInternalServerError)
+				log.Error("Failed to create todo via service", err)
+				web.RespondError(w, err, http.StatusInternalServerError)
 				return
 			}
 			web.RespondJSON(w, http.StatusCreated, createdTodo)
-			// case http.MethodGet:
-			// 	todos, err := todoRepo.GetAllTodos()
-			// 	if err != nil {
-			// 		web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
-			// 		return
-			// 	}
-			// 	web.RespondJSON(w, http.StatusOK, todos)
+
 		case http.MethodGet:
+			// Check for ID in query parameter for GetById, otherwise GetAll
 			idStr := r.URL.Query().Get("id")
-			if idStr == "" {
-				web.RespondError(w, errors.New("ID is required"), http.StatusBadRequest)
-				return
+			if idStr != "" {
+				id, err := strconv.ParseUint(idStr, 10, 32)
+				if err != nil {
+					web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid ID format", err), http.StatusBadRequest)
+					return
+				}
+				todo, err := todoService.GetTodoByID(uint(id)) // <--- Call Service method!
+				if err != nil {
+					web.RespondError(w, err, http.StatusInternalServerError)
+					return
+				}
+				web.RespondJSON(w, http.StatusOK, todo)
+			} else {
+				todos, err := todoService.GetAllTodos() // <--- Call Service method!
+				if err != nil {
+					web.RespondError(w, err, http.StatusInternalServerError)
+					return
+				}
+				web.RespondJSON(w, http.StatusOK, todos)
 			}
-			id, err := strconv.ParseUint(idStr, 10, 32)
-			if err != nil {
-				web.RespondError(w, errors.New("Invalid ID format"), http.StatusBadRequest)
-				return
-			}
-			todo, err := todoRepo.GetTodoByID(uint(id))
-			if err != nil {
-				web.RespondError(w, errors.New("Failed to get test todo"), http.StatusInternalServerError)
-				return
-			}
-			if todo == nil {
-				web.RespondError(w, errors.New("Todo not found"), http.StatusNotFound)
-				return
-			}
-			web.RespondJSON(w, http.StatusOK, todo)
+
 		case http.MethodPut:
-			var updatedTodo models.Todo
-			if err := json.NewDecoder(r.Body).Decode(&updatedTodo); err != nil {
-				web.RespondError(w, errors.New("Invalid request payload"), http.StatusBadRequest)
+			var req services.UpdateTodoRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid request body", err), http.StatusBadRequest)
 				return
 			}
-			if updatedTodo.ID == 0 {
-				web.RespondError(w, errors.New("ID is required for update"), http.StatusBadRequest)
-				return
-			}
-			resultTodo, err := todoRepo.UpdateTodo(&updatedTodo)
+			updatedTodo, err := todoService.UpdateTodo(&req) // <--- Call Service method!
 			if err != nil {
 				web.RespondError(w, err, http.StatusInternalServerError)
 				return
 			}
-			web.RespondJSON(w, http.StatusOK, resultTodo)
+			web.RespondJSON(w, http.StatusOK, updatedTodo)
+
 		case http.MethodDelete:
 			idStr := r.URL.Query().Get("id")
 			if idStr == "" {
-				web.RespondError(w, errors.New("ID is required for deletion"), http.StatusBadRequest)
+				web.RespondError(w, appErrors.New("INVALID_INPUT", "ID query parameter is required for delete", nil), http.StatusBadRequest)
 				return
 			}
 			id, err := strconv.ParseUint(idStr, 10, 32)
 			if err != nil {
-				web.RespondError(w, errors.New("Invalid ID format"), http.StatusBadRequest)
+				web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid ID format", err), http.StatusBadRequest)
 				return
 			}
-			if err := todoRepo.DeleteTodo(uint(id)); err != nil {
+			if err := todoService.DeleteTodo(uint(id)); err != nil { // <--- Call Service method!
 				web.RespondError(w, err, http.StatusInternalServerError)
 				return
 			}
-			web.RespondJSON(w, http.StatusNoContent, nil)
+			web.RespondJSON(w, http.StatusNoContent, nil) // 204 No Content
+
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
 		}
-	})
-	router.HandleFunc("/",func(w http.ResponseWriter, r *http.Request) {
-      	todos, err := todoRepo.GetAllTodos()
-				if err != nil {
-					web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
-					return
-				}
-				web.RespondJSON(w, http.StatusOK, todos)
 	})
 	// 4. Start Server
 	serverAddr := fmt.Sprintf(":%d", cfg.ServerPort)

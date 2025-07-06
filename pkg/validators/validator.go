@@ -1,14 +1,16 @@
-package validators
+package validator
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-playground/validator/v10"
+	gv "github.com/go-playground/validator/v10"
 )
 
-var validate = validator.New()
-
+type validator struct {
+	validate *gv.Validate
+}
+func NewValidator() *validator {}
 type ValidationError struct {
 	Field string `json:"field"`
 	Error string `json:"error"`
