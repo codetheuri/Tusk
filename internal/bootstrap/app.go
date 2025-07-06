@@ -41,13 +41,13 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	//initialize the repositories
 	todoRepo := repositories.NewGormTodoRepository(db, log)
 	router := http.NewServeMux()
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Tusk is running! (Bootstrapped)")
-	})
+	// router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	fmt.Fprintln(w, "Tusk is running! (Bootstrapped)")
+	// })
 
 	router.HandleFunc("/test-repo", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-case http.MethodPost:
+		case http.MethodPost:
 			newTodo := &models.Todo{Title: "Test Todo", Description: "Created from /test-repo"}
 			createdTodo, err := todoRepo.CreateTodo(newTodo)
 			if err != nil {
@@ -55,14 +55,14 @@ case http.MethodPost:
 				return
 			}
 			web.RespondJSON(w, http.StatusCreated, createdTodo)
-		// case http.MethodGet:
-		// 	todos, err := todoRepo.GetAllTodos()
-		// 	if err != nil {
-		// 		web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
-		// 		return
-		// 	}
-		// 	web.RespondJSON(w, http.StatusOK, todos)
-	   case http.MethodGet:
+			// case http.MethodGet:
+			// 	todos, err := todoRepo.GetAllTodos()
+			// 	if err != nil {
+			// 		web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
+			// 		return
+			// 	}
+			// 	web.RespondJSON(w, http.StatusOK, todos)
+		case http.MethodGet:
 			idStr := r.URL.Query().Get("id")
 			if idStr == "" {
 				web.RespondError(w, errors.New("ID is required"), http.StatusBadRequest)
@@ -73,7 +73,7 @@ case http.MethodPost:
 				web.RespondError(w, errors.New("Invalid ID format"), http.StatusBadRequest)
 				return
 			}
-			todo, err := todoRepo.GetTodoByID(uint(id))	
+			todo, err := todoRepo.GetTodoByID(uint(id))
 			if err != nil {
 				web.RespondError(w, errors.New("Failed to get test todo"), http.StatusInternalServerError)
 				return
@@ -82,7 +82,7 @@ case http.MethodPost:
 				web.RespondError(w, errors.New("Todo not found"), http.StatusNotFound)
 				return
 			}
-			web.RespondJSON(w, http.StatusOK, todo)	
+			web.RespondJSON(w, http.StatusOK, todo)
 		case http.MethodPut:
 			var updatedTodo models.Todo
 			if err := json.NewDecoder(r.Body).Decode(&updatedTodo); err != nil {
@@ -120,7 +120,14 @@ case http.MethodPost:
 			json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
 		}
 	})
-
+	router.HandleFunc("/",func(w http.ResponseWriter, r *http.Request) {
+      	todos, err := todoRepo.GetAllTodos()
+				if err != nil {
+					web.RespondError(w, errors.New("Failed to get test todos"), http.StatusInternalServerError)
+					return
+				}
+				web.RespondJSON(w, http.StatusOK, todos)
+	})
 	// 4. Start Server
 	serverAddr := fmt.Sprintf(":%d", cfg.ServerPort)
 	log.Info(fmt.Sprintf("Server starting on %s", serverAddr))
