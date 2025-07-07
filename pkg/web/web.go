@@ -10,14 +10,41 @@ import (
 	"github.com/codetheuri/todolist/pkg/validators"
 )
 
+func DataResponse(w http.ResponseWriter ,data interface{}) map[string]interface{} {
+	if data == nil {
+		return nil
+	}
+
+	// if data is a map, return it directly
+	// if m, ok := data.(map[string]interface{}); ok {
+	// 	return m
+	// }
+
+	// otherwise, wrap it in a map with "data" key
+	return map[string]interface{}{"datapayload": data}
+}
+func ErrorResponse(w http.ResponseWriter ,status int,  data interface{}) map[string]interface{} {
+	if data == nil{
+		return nil
+	}
+	return map[string]interface{}{"errorpayload": data}
+}
 func RespondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	if data != nil {
-		if err := json.NewEncoder(w).Encode(data); err != nil {
+     // Ensure the data is wrapped in a map
+	 response := map[string]interface{}{"data": data}
+	//  datapayload := (map[string]interface{}{"datapayload":response})
+	 datapayload := DataResponse(w, response)
+		
+	if datapayload != nil {
+		if err := json.NewEncoder(w).Encode(datapayload); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
 		}
 	}
+	//  data = DataResponse(w, data)
+	// return DataResponse(w,data) // Ensure the response is wrapped in a map
+	// return  map[string]interface{}{"datapayload": response} // Ensure the response is wrapped in a map
 }
 
 func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
@@ -30,6 +57,7 @@ func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
 		Message: "An unexpected error occurred",
 	}
 	statusCode := defaultStatus
+
 
 	// cast custom AppError
 	var appErr appErrors.AppError
@@ -71,5 +99,7 @@ func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
 	} else {
 		errorResponse.Message = "An unexpected error occurred"
 	}
+	// response :=   ErrorResponse(w, statusCode,errorResponse)
+  
 	RespondJSON(w, statusCode, errorResponse)
 }

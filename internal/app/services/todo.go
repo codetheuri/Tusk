@@ -28,8 +28,8 @@ type CreateTodoRequest struct {
 }
 type UpdateTodoRequest struct {
 	ID          uint   `json:"id" validate:"required"`
-	Title       string `json:"title" validate:"omniempty,min=3,max=100"`
-	Description string `json:"description" validate:"omniempty,required,max=255"`
+	Title       string `json:"title" validate:"required,min=3,max=100"`
+	Description string `json:"description" validate:"required,max=255"`
 	Completed   bool   `json:"completed"`
 }
 
@@ -142,7 +142,11 @@ func (s *todoService) UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, e
 	if updateReq.Title != "" {
 		existingTodo.Title = updateReq.Title
 	}
-	if updateReq.Completed != false {
+	if updateReq.Description != "" {
+		existingTodo.Description = updateReq.Description
+	}
+	// if updateReq.Completed is false, we don't update it
+	if updateReq.Completed != existingTodo.Completed {
 		existingTodo.Completed = updateReq.Completed
 	}
 	//persist

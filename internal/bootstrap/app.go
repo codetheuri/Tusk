@@ -1,12 +1,11 @@
 package bootstrap
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/codetheuri/todolist/config"
+	"github.com/codetheuri/todolist/internal/app/handlers"
 	"github.com/codetheuri/todolist/internal/app/models"
 	"github.com/codetheuri/todolist/internal/app/repositories"
 	"github.com/codetheuri/todolist/internal/app/services"
@@ -14,9 +13,9 @@ import (
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/validators"
-
-	// "github.com/codetheuri/todolist/pkg/validators"
+	"github.com/codetheuri/todolist/pkg/middleware" 
 	"github.com/codetheuri/todolist/pkg/web"
+	// "github.com/codetheuri/todolist/pkg/validators"
 )
 
 // initiliazes and start the application
@@ -46,94 +45,54 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	todoRepo := repositories.NewGormTodoRepository(db, log)
 	//initilliaze services
 	todoService := services.NewTodoService(todoRepo, appValidator, log)
+	// initialize the handlers
+	todoHandler := handlers.NewTodoHandler(todoService, log)
+	// Setup HTTP Router
 
-	router := http.NewServeMux()
+	mainMUx := http.NewServeMux()
+	// router := http.NewServeMux()
 	// router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 	// 	fmt.Fprintln(w, "Tusk is running! (Bootstrapped)")
 	// })
 
-	router.HandleFunc("/test-service", func(w http.ResponseWriter, r *http.Request) {
-		// Log the request method for debugging
-		log.Debug("Received request to /test-service", "method", r.Method)
-
-		switch r.Method {
-		case http.MethodPost:
-			var req services.CreateTodoRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid request body", err), http.StatusBadRequest)
-				return
-			}
-			createdTodo, err := todoService.CreateTodo(&req) // <--- Call Service method!
-			if err != nil {
-				log.Error("Failed to create todo via service", err)
-				web.RespondError(w, err, http.StatusInternalServerError)
-				return
-			}
-			web.RespondJSON(w, http.StatusCreated, createdTodo)
-
-		case http.MethodGet:
-			// Check for ID in query parameter for GetById, otherwise GetAll
-			idStr := r.URL.Query().Get("id")
-			if idStr != "" {
-				id, err := strconv.ParseUint(idStr, 10, 32)
-				if err != nil {
-					web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid ID format", err), http.StatusBadRequest)
-					return
-				}
-				todo, err := todoService.GetTodoByID(uint(id)) // <--- Call Service method!
-				if err != nil {
-					web.RespondError(w, err, http.StatusInternalServerError)
-					return
-				}
-				web.RespondJSON(w, http.StatusOK, todo)
-			} else {
-				todos, err := todoService.GetAllTodos() // <--- Call Service method!
-				if err != nil {
-					web.RespondError(w, err, http.StatusInternalServerError)
-					return
-				}
-				web.RespondJSON(w, http.StatusOK, todos)
-			}
-
-		case http.MethodPut:
-			var req services.UpdateTodoRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid request body", err), http.StatusBadRequest)
-				return
-			}
-			updatedTodo, err := todoService.UpdateTodo(&req) // <--- Call Service method!
-			if err != nil {
-				web.RespondError(w, err, http.StatusInternalServerError)
-				return
-			}
-			web.RespondJSON(w, http.StatusOK, updatedTodo)
-
-		case http.MethodDelete:
-			idStr := r.URL.Query().Get("id")
-			if idStr == "" {
-				web.RespondError(w, appErrors.New("INVALID_INPUT", "ID query parameter is required for delete", nil), http.StatusBadRequest)
-				return
-			}
-			id, err := strconv.ParseUint(idStr, 10, 32)
-			if err != nil {
-				web.RespondError(w, appErrors.New("INVALID_INPUT", "Invalid ID format", err), http.StatusBadRequest)
-				return
-			}
-			if err := todoService.DeleteTodo(uint(id)); err != nil { // <--- Call Service method!
-				web.RespondError(w, err, http.StatusInternalServerError)
-				return
-			}
-			web.RespondJSON(w, http.StatusNoContent, nil) // 204 No Content
-
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
+	mainMUx.HandleFunc("/todos", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/todos" {
+			todoHandler.GetAllTodos(w, r)
+			return
 		}
+
+		if r.Method == http.MethodPost && r.URL.Path == "/todos" {
+			todoHandler.CreateTodo(w, r)
+			return
+		}
+		web.RespondError(w, appErrors.NotFoundError("Resource not found or method not allowed", nil), http.StatusNotFound)
+
 	})
-	// 4. Start Server
+	mainMUx.HandleFunc("/todos/", func(w http.ResponseWriter, r *http.Request) {
+		
+			// For /todos/{id} routes, delegate to the specific handler method
+			switch r.Method {
+			case http.MethodGet:
+				todoHandler.GetTodoByID(w, r)
+			case http.MethodPut:
+				todoHandler.UpdateTodo(w, r)
+			case http.MethodDelete:
+				todoHandler.DeleteTodo(w, r)
+			default:
+				web.RespondError(w, appErrors.New("METHOD_NOT_ALLOWED", "Method not allowed for this resource", nil), http.StatusMethodNotAllowed)
+			}
+			return
+		
+	})
+
+	//middleware
+	var handler http.Handler = mainMUx
+	handler = middleware.Recovery(log)(handler)
+	handler = middleware.Logger(log)(handler)
+	//Start Server
 	serverAddr := fmt.Sprintf(":%d", cfg.ServerPort)
 	log.Info(fmt.Sprintf("Server starting on %s", serverAddr))
-	if err := http.ListenAndServe(serverAddr, router); err != nil {
+	if err := http.ListenAndServe(serverAddr, handler); err != nil {
 		return fmt.Errorf("server failed to start: %w", err)
 	}
 
