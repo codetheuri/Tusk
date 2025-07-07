@@ -52,7 +52,7 @@ func (r *gormTodoRepository) GetTodoByID(id uint) (*models.Todo, error) {
 		r.log.Error("failed to get todo by id", err, "id", id)
 		return nil, appErrors.DatabaseError(fmt.Sprintf("failed to get todo by id %d", id), err)
 	}
-	r.log.Debug("todo retrieved successfully", "id", id, "todo", todo)
+	r.log.Debug("todo retrieved successfully", "id", id, )
 	return &todo, nil
 }
 

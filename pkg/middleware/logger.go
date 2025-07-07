@@ -20,7 +20,7 @@ func Logger(log logger.Logger) func(next http.Handler) http.Handler {
 
 			log.Info("HTTP Request",
 				"method", r.Method,
-				"uri", r.RequestURI,
+				"url", r.RequestURI,
 				"status", lrw.statusCode,
 				"duration", time.Since(start),
 				"client_ip", r.RemoteAddr,
