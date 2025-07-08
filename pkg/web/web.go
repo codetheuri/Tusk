@@ -10,7 +10,7 @@ import (
 	"github.com/codetheuri/todolist/pkg/validators"
 )
 
-func DataResponse(w http.ResponseWriter ,data interface{}) map[string]interface{} {
+func DataResponse(w http.ResponseWriter, data interface{}) map[string]interface{} {
 	if data == nil {
 		return nil
 	}
@@ -23,8 +23,8 @@ func DataResponse(w http.ResponseWriter ,data interface{}) map[string]interface{
 	// otherwise, wrap it in a map with "data" key
 	return map[string]interface{}{"datapayload": data}
 }
-func ErrorResponse(w http.ResponseWriter ,status int,  data interface{}) map[string]interface{} {
-	if data == nil{
+func ErrorResponse(w http.ResponseWriter, status int, data interface{}) map[string]interface{} {
+	if data == nil {
 		return nil
 	}
 	return map[string]interface{}{"errorpayload": data}
@@ -32,15 +32,14 @@ func ErrorResponse(w http.ResponseWriter ,status int,  data interface{}) map[str
 func RespondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-     // Ensure the data is wrapped in a map
-	 response := map[string]interface{}{"data": data}
+	// Ensure the data is wrapped in a map
+   finalPayload := DataResponse(w, data)
+   
 	//  datapayload := (map[string]interface{}{"datapayload":response})
-	 datapayload := DataResponse(w, response)
-		
-	if datapayload != nil {
-		if err := json.NewEncoder(w).Encode(datapayload); err != nil {
-			http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
-		}
+
+
+	if err := json.NewEncoder(w).Encode(finalPayload); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
 	}
 	//  data = DataResponse(w, data)
 	// return DataResponse(w,data) // Ensure the response is wrapped in a map
@@ -57,7 +56,6 @@ func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
 		Message: "An unexpected error occurred",
 	}
 	statusCode := defaultStatus
-
 
 	// cast custom AppError
 	var appErr appErrors.AppError
@@ -100,6 +98,6 @@ func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
 		errorResponse.Message = "An unexpected error occurred"
 	}
 	// response :=   ErrorResponse(w, statusCode,errorResponse)
-  
-	RespondJSON(w, statusCode, errorResponse)
+
+	RespondJSON(w, statusCode, ErrorResponse(w, statusCode, errorResponse))
 }

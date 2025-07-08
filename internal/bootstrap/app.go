@@ -10,11 +10,10 @@ import (
 	"github.com/codetheuri/todolist/internal/app/repositories"
 	"github.com/codetheuri/todolist/internal/app/services"
 	"github.com/codetheuri/todolist/internal/platform/database"
-	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/todolist/pkg/middleware"
 	"github.com/codetheuri/todolist/pkg/validators"
-	"github.com/codetheuri/todolist/pkg/middleware" 
-	"github.com/codetheuri/todolist/pkg/web"
+	"github.com/codetheuri/todolist/internal/app/routers"
 	// "github.com/codetheuri/todolist/pkg/validators"
 )
 
@@ -48,47 +47,16 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	// initialize the handlers
 	todoHandler := handlers.NewTodoHandler(todoService, log)
 	// Setup HTTP Router
+	mainRouter := router.NewRouter(todoHandler, log)
+	
 
-	mainMUx := http.NewServeMux()
-	// router := http.NewServeMux()
-	// router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	// 	fmt.Fprintln(w, "Tusk is running! (Bootstrapped)")
-	// })
-
-	mainMUx.HandleFunc("/todos", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/todos" {
-			todoHandler.GetAllTodos(w, r)
-			return
-		}
-
-		if r.Method == http.MethodPost && r.URL.Path == "/todos" {
-			todoHandler.CreateTodo(w, r)
-			return
-		}
-		web.RespondError(w, appErrors.NotFoundError("Resource not found or method not allowed", nil), http.StatusNotFound)
-
-	})
-	mainMUx.HandleFunc("/todos/", func(w http.ResponseWriter, r *http.Request) {
-		
-			// For /todos/{id} routes, delegate to the specific handler method
-			switch r.Method {
-			case http.MethodGet:
-				todoHandler.GetTodoByID(w, r)
-			case http.MethodPut:
-				todoHandler.UpdateTodo(w, r)
-			case http.MethodDelete:
-				todoHandler.DeleteTodo(w, r)
-			default:
-				web.RespondError(w, appErrors.New("METHOD_NOT_ALLOWED", "Method not allowed for this resource", nil), http.StatusMethodNotAllowed)
-			}
-			return
-		
-	})
 
 	//middleware
-	var handler http.Handler = mainMUx
-	handler = middleware.Recovery(log)(handler)
+	var handler http.Handler = mainRouter
 	handler = middleware.Logger(log)(handler)
+	handler = middleware.Recovery(log)(handler)
+	handler = middleware.RequestID()(handler)
+
 	//Start Server
 	serverAddr := fmt.Sprintf(":%d", cfg.ServerPort)
 	log.Info(fmt.Sprintf("Server starting on %s", serverAddr))

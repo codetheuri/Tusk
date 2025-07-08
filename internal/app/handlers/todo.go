@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/codetheuri/todolist/internal/app/services"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/web"
+	"github.com/go-chi/chi"
 )
 
 type TodoHandler struct {
@@ -48,11 +48,18 @@ func (h *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 // get todo by id
 func (h *TodoHandler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Hander: Received GetTodoByID request")
-	idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil{
-		h.log.Warn("Handler: Invalid ID format","id", idStr, "error", err)
-		web.RespondError(w, appErrors.ValidationError( "Invalid ID format", err,nil), http.StatusBadRequest)
+	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	// id, err := strconv.ParseUint(idStr, 10, 32)
+	idStr := chi.URLParam(r, "id")
+	// if idStr == "" {
+	// 	web.RespondError(w, r, h.Log, errors.NewError(errors.ENonExistent, "ID is missing in the URL"))
+	// 	return
+	// }
+
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		h.log.Warn("Handler: Invalid ID format", "id", idStr, "error", err)
+		web.RespondError(w, appErrors.ValidationError("Invalid ID format", err, nil), http.StatusBadRequest)
 		return
 	}
 	res, err := h.todoService.GetTodoByID(uint(id))
@@ -65,7 +72,7 @@ func (h *TodoHandler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Todo retrieved successfully", "todoID", res.ID)
 }
 
-//get all todos
+// get all todos
 func (h *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received GetAllTodos request")
 
@@ -78,10 +85,12 @@ func (h *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	web.RespondJSON(w, http.StatusOK, res)
 
 }
+
 // UpdateTodo
 func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received UpdateTodo request")
-	idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		h.log.Warn("Handler: Invalid ID format in UpdateTodo request", "idStr", idStr, "error", err)
@@ -112,7 +121,8 @@ func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 func (h *TodoHandler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: received DeleteTodo request")
 
-	idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		h.log.Warn("Handler: Invalid ID format in DeleteTodo request", "idStr", idStr, "error", err)

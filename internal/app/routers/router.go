@@ -1,5 +1,58 @@
 package router
 
+import (
+	"net/http"
+
+	"github.com/codetheuri/todolist/internal/app/handlers"
+	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/todolist/pkg/web"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+)
+
+func NewRouter(h *handlers.TodoHandler, log logger.Logger) http.Handler {
+  r := chi.NewRouter()
+
+     r.Use(middleware.RequestID) // Generate a unique ID for each request
+	r.Use(middleware.Logger) // Log each request
+	r.Use(middleware.Recoverer)
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+     web.RespondJSON(w, http.StatusOK, map[string]string{"message": "Tusk is running!"})
+	})
+	// api versioning
+	r.Route("/api/v1", func(r chi.Router) {
+
+		//within the api version
+	r.Route("/todos", func(r chi.Router) {
+		r.Get("/", h.GetAllTodos)
+		r.Post("/", h.CreateTodo)
+
+		r.Get("/{id}", h.GetTodoByID)
+		r.Put("/{id}", h.UpdateTodo)
+		r.Delete("/{id}", h.DeleteTodo)
+	})
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		log.Warn("Route not found", "path", r.URL.Path, "method", r.Method)
+		// web.RespondError(w, "The requested resource was not found", http.StatusNotFound)
+		web.RespondJSON(w, http.StatusNotFound, map[string]string{"error": "Resource not found"})
+		// http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+	})
+	})
+
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		log.Warn("Method not allowed", "path", r.URL.Path, "method", r.Method)
+		web.RespondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		// http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	})
+
+	return r
+
+	
+
+
+}
+
 // import (
 // 	"encoding/json"
 // 	"net/http"

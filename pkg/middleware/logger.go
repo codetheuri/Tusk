@@ -18,12 +18,17 @@ func Logger(log logger.Logger) func(next http.Handler) http.Handler {
 
 			next.ServeHTTP(w, r)
 
+			requestID := GetRequestID(r.Context())
+
 			log.Info("HTTP Request",
+				"request_id", requestID,
 				"method", r.Method,
+				"path", r.URL.Path,
 				"url", r.RequestURI,
 				"status", lrw.statusCode,
 				"duration", time.Since(start),
-				"client_ip", r.RemoteAddr,
+				"remote_addr", r.RemoteAddr,
+
 				"user_agent", r.UserAgent(),
 			)
 		})
@@ -34,7 +39,8 @@ type loggingResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
-func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter{
+
+func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
 	return &loggingResponseWriter{w, http.StatusOK}
 }
 
