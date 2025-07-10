@@ -8,6 +8,7 @@ import (
 	"github.com/codetheuri/todolist/internal/app/repositories"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/todolist/pkg/pagination"
 	"github.com/codetheuri/todolist/pkg/validators"
 )
 
@@ -15,7 +16,7 @@ import (
 type TodoService interface {
 	CreateTodo(createReq *CreateTodoRequest) (*TodoResponse, error)
 	GetTodoByID(id uint) (*TodoResponse, error)
-	GetAllTodos() ([]TodoResponse, error)
+	GetAllTodos(page, limit int) (*pagination.Pagination, error)
 	UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, error)
 	DeleteTodo(id uint) error
 }
@@ -104,19 +105,33 @@ func (s *todoService) GetTodoByID(id uint) (*TodoResponse, error) {
 }
 
 // get all
-func (s *todoService) GetAllTodos() ([]TodoResponse, error) {
+func (s *todoService) GetAllTodos(page, limit int) (*pagination.Pagination, error) {
 	//fetch
-	todos, err := s.repo.GetAllTodos()
+	p := &pagination.Pagination{Page: page, Limit: limit}
+	todos, err := s.repo.GetAllTodos(p)
+
 	if err != nil {
 		s.log.Error("service : failed to get all todos ", err)
 		return nil, err
 	}
 	//map models
-	var todoResponses []TodoResponse
-	for _, todo := range todos {
-		todoResponses = append(todoResponses, *s.toTodoResponse(&todo))
+	todoResponses := make([]TodoResponse, len(todos))
+	for i, todo := range todos {
+		todoResponses[i] = TodoResponse{
+			ID:          todo.ID,
+			Title:       todo.Title,
+			Description: todo.Description,
+			Completed:   todo.Completed,
+			CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
 	}
-	return todoResponses, nil
+	rowsInterface := make([]interface{}, len(todoResponses))
+	for i, v := range todoResponses {
+		rowsInterface[i] = v
+	}
+	p.Rows = rowsInterface
+	return p, nil
 }
 
 // update

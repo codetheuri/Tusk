@@ -1,11 +1,13 @@
 package repositories
 
 import (
+	"errors"
 	"fmt"
-     "errors"
+
 	"github.com/codetheuri/todolist/internal/app/models"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/todolist/pkg/pagination"
 	"gorm.io/gorm"
 )
 
@@ -13,7 +15,7 @@ import (
 type TodoRepository interface {
 	CreateTodo(todo *models.Todo) (*models.Todo, error)
 	GetTodoByID(id uint) (*models.Todo, error)
-	GetAllTodos() ([]models.Todo, error)
+	GetAllTodos(p *pagination.Pagination) ([]models.Todo, error)
 	UpdateTodo(todo *models.Todo) (*models.Todo, error)
 	DeleteTodo(id uint) error
 }
@@ -57,13 +59,18 @@ func (r *gormTodoRepository) GetTodoByID(id uint) (*models.Todo, error) {
 }
 
 // retrieve all todos
-func (r *gormTodoRepository) GetAllTodos() ([]models.Todo, error) {
+func (r *gormTodoRepository) GetAllTodos(p *pagination.Pagination) ([]models.Todo, error) {
 	var todos []models.Todo
-	if err := r.db.Find(&todos).Error; err != nil {
-		r.log.Error("failed to get all todos", err)
-		return nil, appErrors.DatabaseError("failed to get all todos", err)
+	//  apply pagination
+	// result := r.db.Scopes(pagination.Paginate(&models.Todo{},p,r.db)).Find(&todos)
+
+	result := r.db.Model(&models.Todo{}).Scopes(pagination.Paginate(p)).Find(&todos)
+	if result.Error != nil{
+		r.log.Error("Repository: Failed to fetch all todos", result.Error)
+		return nil, appErrors.DatabaseError("Failed to fetch todos", result.Error)
 	}
-	r.log.Debug("todos retrieved successfully", "count", len(todos))
+
+	r.log.Info("todos retrieved successfully", "count", len(todos))
 	return todos, nil
 }
 

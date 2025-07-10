@@ -8,6 +8,7 @@ import (
 	"github.com/codetheuri/todolist/internal/app/services"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/todolist/pkg/pagination"
 	"github.com/codetheuri/todolist/pkg/web"
 	"github.com/go-chi/chi"
 )
@@ -75,14 +76,25 @@ func (h *TodoHandler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 // get all todos
 func (h *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received GetAllTodos request")
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = pagination.DefaultPage
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <1 || limit > pagination.MaxLimit{
+		limit = pagination.DefaultLimit
+	}
 
-	res, err := h.todoService.GetAllTodos()
+	p, err := h.todoService.GetAllTodos(page,limit)
 	if err != nil {
 		h.log.Error("Handler: Service call failed for GetAllTodos", err)
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusOK, res)
+	web.RespondJSON(w, http.StatusOK, p)
+	h.log.Info("Handler: Todos retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
 
 }
 
