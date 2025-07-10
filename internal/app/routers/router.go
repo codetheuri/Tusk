@@ -12,9 +12,9 @@ import (
 
 func NewRouter(h *handlers.TodoHandler, log logger.Logger) http.Handler {
   r := chi.NewRouter()
-
+    r.Use(middleware.Logger)  // Log each request
      r.Use(middleware.RequestID) // Generate a unique ID for each request
-	r.Use(middleware.Logger) // Log each request
+	
 	r.Use(middleware.Recoverer)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {

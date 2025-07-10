@@ -16,7 +16,7 @@ func Logger(log logger.Logger) func(next http.Handler) http.Handler {
 			//custom response writer to capture status code
 			lrw := newLoggingResponseWriter(w)
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(lrw, r)
 
 			requestID := GetRequestID(r.Context())
 

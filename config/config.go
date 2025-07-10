@@ -1,7 +1,6 @@
 package config
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var DB *sql.DB
+
 
 type Config struct {
 	DBUser     string
@@ -26,6 +25,10 @@ type Config struct {
 	AppName    string
 	AppVersion string
 	AppMode    string
+
+	DBMaxIdleConns    int
+	DBMaxOpenConns    int
+	DBConnMaxLifetime int
 }
 
 func LoadConfig() (*Config, error) {
@@ -44,6 +47,9 @@ func LoadConfig() (*Config, error) {
 		AppName:    os.Getenv("APP_NAME"),
 		AppVersion: os.Getenv("APP_VERSION"),
 		AppMode:    os.Getenv("APP_MODE"),
+		DBMaxIdleConns:    10, // default value
+		DBMaxOpenConns:    100, // default value
+		DBConnMaxLifetime: 60, // default value in seconds
 	}
 	dbPortStr := os.Getenv("DB_PORT")
 	if dbPortStr == "" {
@@ -69,8 +75,13 @@ func LoadConfig() (*Config, error) {
 	if cfg.DBUser == "" || cfg.DBPass == "" || cfg.DBHost == "" || cfg.DBName == "" {
 		return nil, errors.ConfigError("Missing required database configuration", nil)
 	}
+	 if val := os.Getenv("DB_MAX_IDLE_CONNS"); val != "" {
+        if i, err := strconv.Atoi(val); err == nil {
+            cfg.DBMaxIdleConns = i
+        }
+    }
 	return cfg, nil
-	
+
 }
 
 // func InitDb() {
