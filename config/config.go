@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/codetheuri/todolist/pkg/errors"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/joho/godotenv"
@@ -25,7 +27,7 @@ type Config struct {
 	AppName    string
 	AppVersion string
 	AppMode    string
-
+    DbURl      string
 	DBMaxIdleConns    int
 	DBMaxOpenConns    int
 	DBConnMaxLifetime int
@@ -50,6 +52,7 @@ func LoadConfig() (*Config, error) {
 		DBMaxIdleConns:    10, // default value
 		DBMaxOpenConns:    100, // default value
 		DBConnMaxLifetime: 60, // default value in seconds
+		
 	}
 	dbPortStr := os.Getenv("DB_PORT")
 	if dbPortStr == "" {
@@ -80,8 +83,35 @@ func LoadConfig() (*Config, error) {
             cfg.DBMaxIdleConns = i
         }
     }
+	cfg.DbURl = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		cfg.DBUser,
+		cfg.DBPass,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
+	)
 	return cfg, nil
 
+}
+
+var DB *gorm.DB
+
+func ConnectDB() (*gorm.DB,error){
+	if DB == nil {
+		cfg, err := LoadConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config: %w", err)
+		}
+
+		dsn := cfg.DbURl // Use the constructed URL
+		
+		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to database: %w", err)
+		}
+		DB = db
+	}
+	return DB, nil
 }
 
 // func InitDb() {
