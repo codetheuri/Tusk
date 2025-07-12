@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"math"
 
 	"github.com/codetheuri/todolist/internal/app/services"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
@@ -61,6 +62,12 @@ func (h *TodoHandler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Warn("Handler: Invalid ID format", "id", idStr, "error", err)
 		web.RespondError(w, appErrors.ValidationError("Invalid ID format", err, nil), http.StatusBadRequest)
+		return
+	}
+	// Check if the parsed ID is within the bounds of the uint type
+	if id > math.MaxUint {
+		h.log.Warn("Handler: ID exceeds the maximum allowed value for uint", "id", id)
+		web.RespondError(w, appErrors.ValidationError("ID exceeds the maximum allowed value", nil, nil), http.StatusBadRequest)
 		return
 	}
 	res, err := h.todoService.GetTodoByID(uint(id))
