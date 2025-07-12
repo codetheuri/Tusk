@@ -73,16 +73,18 @@ func main() {
 			log.Fatal("Error: -name flag is required for 'create' command.")
 		}
 		createMigrationFile(*createName)
-    case "help":
+	case "help":
 		fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
 		fmt.Println("Commands:")
 		fmt.Println("  up              Apply all pending migrations")
 		fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
 		fmt.Println("  create -name NAME Generate a new migration file")
 		fmt.Println("  help            Show this help message")
-		os.Exit(0)		
+		os.Exit(0)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
+		fmt.Println("Available commands: up, down, create, help")
+		fmt.Println("Use 'go run ./cmd/migrate help' for more information.")
 		os.Exit(1)
 	}
 
@@ -149,7 +151,7 @@ func runMigrations(db *gorm.DB, direction string) {
 			log.Fatalf("Failed to revert back migration %s: %v", migrationToRollback.Name(), err)
 		}
 		if err := db.Where("version = ?", migrationToRollback.Version()).Delete(&migrations.SchemaMigrationModel{}).Error; err != nil {
-			log.Fatalf("Failed to remove reverted back migration record %s: %v", migrationToRollback.Name())
+			log.Fatalf("Failed to remove reverted back migration record %s: ", migrationToRollback.Name())
 		}
 		log.Printf("Successfully rolled back migration: %s\n", migrationToRollback.Name())
 	}
@@ -159,24 +161,25 @@ func createMigrationFile(name string) {
 	version := timestamp
 
 	fileName := fmt.Sprintf("database/migrations/%s_%s.go", version, name)
-
+	structName := strings.ReplaceAll(name, "_", "")
+	structName = strings.ToUpper(string(structName[0])) + structName[1:] // Capitalize first letter
 	content := fmt.Sprintf(`package migrations
 	import (
 		"gorm.io/gorm"
 		"log"
 )
-		// %s_%s struct implements migration interface
-		type %s_%s struct {}
+		// %s struct implements migration interface
+		type %s struct {}
 
-		func (m *%s_%s) Version() string{
+		func (m *%s) Version() string{
 			return "%s"
 			}
-		func (m *%s_%s) Name() string {
+		func (m *%s) Name() string {
 			return "%s"
 		}	
 			//up migration method
-		func (m *%s_%s) Up(tx *gorm.DB) error {
-		log.Printf("Running Up migration: %s", m.Name())
+		func (m *%s) Up(tx *gorm.DB) error {
+		log.Printf("Running Up migration: %%s", m.Name())
 		// Add your migration logic here
 		//example : 
 		// 1. using SQL calls
@@ -192,12 +195,12 @@ func createMigrationFile(name string) {
 		// if err := tx.AutoMigrate(&NewModel{}); err != nil {
 		// 	return err
 		// }
-		log.Printf("Successfully applied Up migration: %s", m.Name())
+		log.Printf("Successfully applied Up migration: %%s", m.Name())
 		return nil
 		}
 		//down migration method
-		func (m *%s_%s) Down(tx *gorm.DB) error {
-		log.Printf("Running Down migration: %s", m.Name())
+		func (m *%s) Down(tx *gorm.DB) error {
+		log.Printf("Running Down migration: %%s", m.Name())
 		// Example:
 		// 1. using SQL calls
 		// if err := tx.Exec("DROP TABLE IF EXISTS example").Error; err != nil {
@@ -208,23 +211,25 @@ func createMigrationFile(name string) {
 		// if err := tx.Migrator().DropTable("new_models"); err != nil {
 		// 	return err
 		// }
-		log.Printf("Successfully applied Down migration: %s", m.Name())
+		log.Printf("Successfully applied Down migration: %%s", m.Name())
 		return nil
 		}
 
 		func init() {
 		  // Register the migration
-		  RegisteredMigrations = append(RegisteredMigrations, &%s_%s{})
+		  RegisteredMigrations = append(RegisteredMigrations, &%s{})
 		}
-`, name, strings.ReplaceAll(name, "_", ""), // for struct name
-		name, strings.ReplaceAll(name, "_", ""), // for struct name
-		name, strings.ReplaceAll(name, "_", ""), version,
-		name, strings.ReplaceAll(name, "_", ""), name,
-		name, strings.ReplaceAll(name, "_", ""), // for Up method
-		name, strings.ReplaceAll(name, "_", ""), // for Down method
-		name, strings.ReplaceAll(name, "_", ""),
-name, strings.ReplaceAll(name, "_", ""),
-		name, strings.ReplaceAll(name, "_", ""), // for init registration
+`,
+		structName,          // for struct name
+		structName,          // method receiver
+		structName, version, // for Version method
+		structName, name,
+		structName, 
+		structName, 
+		// structName, 
+		// structName, 
+		structName, // for init registration
+
 	)
 	err := os.WriteFile(fileName, []byte(content), 0644)
 	if err != nil {
