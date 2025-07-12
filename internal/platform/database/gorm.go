@@ -34,7 +34,7 @@ func NewGoRMDB(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
 
 		db.Logger = newLogger.LogMode(gormlogger.Info)
 	}
-
+    
 	if err != nil {
 		log.Error("failed to connect to database", err, "dsn_info", fmt.Sprintf("user: %s, host: %s, port: %s, dbname: %s", cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName))
 		return nil, appErrors.DatabaseError("failed tp connect to database", err)
