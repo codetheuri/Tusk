@@ -8,33 +8,20 @@ import (
 	"github.com/codetheuri/todolist/config"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
-	_ "github.com/go-sql-driver/mysql" // MySQL driver
-	// Or postgres, sqlite, etc.
+
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
 func NewGoRMDB(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
-	// dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-	// 	cfg.DBUser,
-	// 	cfg.DBPass,
-	// 	cfg.DBHost,
-	// 	cfg.DBPort,
-	// 	cfg.DBName,
-	// )
-	// dsn := cfg.DbURl // Use the DbURl from config if available
+
 	newLogger := NewGormLogger(log)
-
-	// db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-	// 	Logger: newLogger.LogMode(gormlogger.Info),
-	// })
-
 	db, err := config.ConnectDB()
 	if db != nil {
 
 		db.Logger = newLogger.LogMode(gormlogger.Info)
 	}
-    
+
 	if err != nil {
 		log.Error("failed to connect to database", err, "dsn_info", fmt.Sprintf("user: %s, host: %s, port: %s, dbname: %s", cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName))
 		return nil, appErrors.DatabaseError("failed tp connect to database", err)

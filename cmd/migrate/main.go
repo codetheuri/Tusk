@@ -15,6 +15,7 @@ import (
 )
 
 var databaseURl string
+var appMode string
 
 func init() {
 	cfg, err := config.LoadConfig()
@@ -23,15 +24,21 @@ func init() {
 	}
 
 	// databaseURl = cfg.DBUser + ":" + cfg.DBPass + "@" + cfg.DBHost + ":" + cfg.DBPort + "/" + cfg.DBName
-	databaseURl = cfg.DbURl
+	databaseURl = cfg.DbURL
 	if databaseURl == "" {
 		log.Fatal("Database URL is not set in the configuration")
+	}
+
+	appMode = cfg.AppMode
+	if appMode == "" {
+		log.Fatal("App mode is not set in the configuration")
 	}
 }
 func main() {
 	upCmd := flag.NewFlagSet("up", flag.ExitOnError)
 	downCmd := flag.NewFlagSet("down", flag.ExitOnError)
 	createCmd := flag.NewFlagSet("create", flag.ExitOnError)
+	freshcmd := flag.NewFlagSet("fresh", flag.ExitOnError)
 
 	downSteps := downCmd.Int("steps", 1, "Number of migrations to revert")
 	createName := createCmd.String("name", "", "Name of the new migration (e.g create_users_table)")
@@ -41,6 +48,7 @@ func main() {
 		fmt.Println("  up              Apply all pending migrations")
 		fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
 		fmt.Println("  create -name NAME Generate a new migration file")
+		fmt.Println("fresh            Drop all tables and reapply all migrations")
 		os.Exit(1)
 	}
 
@@ -73,6 +81,14 @@ func main() {
 			log.Fatal("Error: -name flag is required for 'create' command.")
 		}
 		createMigrationFile(*createName)
+	case "fresh":
+		freshcmd.Parse(os.Args[2:])
+		if appMode != "development" && appMode != "dev" {
+			log.Fatalf("Error: 'fresh' command can only be run in development mode. Current mode: %s", appMode)
+		}
+		log.Println("Dropping all tables and reapplying all migrations...")
+		runFresh(db)
+		log.Println("Fresh migration completed successfully.")
 	case "help":
 		fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
 		fmt.Println("Commands:")
@@ -80,6 +96,7 @@ func main() {
 		fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
 		fmt.Println("  create -name NAME Generate a new migration file")
 		fmt.Println("  help            Show this help message")
+		fmt.Println("  fresh           Drop all tables and reapply all migrations")
 		os.Exit(0)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
@@ -153,7 +170,7 @@ func runMigrations(db *gorm.DB, direction string) {
 		if err := db.Where("version = ?", migrationToRollback.Version()).Delete(&migrations.SchemaMigrationModel{}).Error; err != nil {
 			log.Fatalf("Failed to remove reverted back migration record %s: ", migrationToRollback.Name())
 		}
-		log.Printf("Successfully rolled back migration: %s\n", migrationToRollback.Name())
+		log.Printf("Successfully reverted back migration: %s\n", migrationToRollback.Name())
 	}
 }
 func createMigrationFile(name string) {
@@ -224,10 +241,10 @@ func createMigrationFile(name string) {
 		structName,          // method receiver
 		structName, version, // for Version method
 		structName, name,
-		structName, 
-		structName, 
-		// structName, 
-		// structName, 
+		structName,
+		structName,
+		// structName,
+		// structName,
 		structName, // for init registration
 
 	)
@@ -236,4 +253,42 @@ func createMigrationFile(name string) {
 		log.Fatalf("Failed to create migration file : %v", err)
 	}
 	log.Printf("Migration file created: %s", fileName)
+}
+
+// run fresh migration
+func runFresh(db *gorm.DB) {
+	migrator := db.Migrator()
+	tableNames, err := migrator.GetTables()
+	if err != nil {
+		log.Fatalf("Failed to get tables: %v", err)
+	}
+
+	// var tablesToDrop []string
+	// for _, tableName := range tableNames {
+	// 	tablesToDrop = append(tablesToDrop, tableName)
+	// }
+
+	if len(tableNames) > 0 {
+		log.Printf("Dropping %d tables: %v\n", len(tableNames), tableNames)
+		tablesAsInterfaces := make([]interface{}, len(tableNames))
+		for i, tablename := range tableNames{
+			tablesAsInterfaces[i] =tablename
+		}
+		if err := migrator.DropTable(tablesAsInterfaces...); err != nil {
+			log.Fatalf("Failed to drop tables: %v", err)
+		}
+		log.Println("All tables dropped successfully.")
+	} else {
+		log.Println("No tables found to drop.")
+	}
+
+	log.Println("Re-Creating schema_migrations table...")
+	if err := db.AutoMigrate(&migrations.SchemaMigrationModel{}); err != nil {
+		log.Fatalf("Failed to re-create schema_migrations table: %v", err)
+	}
+
+	log.Println("Reapplying all migrations...")
+	runMigrations(db, "up")
+	log.Println("All migration re-applied.")
+
 }
