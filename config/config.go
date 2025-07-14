@@ -118,7 +118,7 @@ func LoadConfig() (*Config, error) {
 			cfg.DBPort,
 			cfg.DBName,
 		)
-	case "postgres":
+	case "postgres", "pgsql":
 		cfg.DbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Africa/Nairobi",
 			cfg.DBHost,
 			cfg.DBUser,
@@ -149,7 +149,7 @@ func ConnectDB() (*gorm.DB, error) {
 		switch cfg.DBDriver {
 		case "mysql":
 			gormDB, err = gorm.Open(mysql.Open(cfg.DbURL), &gorm.Config{})
-		case "postgres":
+		case "postgres", "pgsql":
 			gormDB, err = gorm.Open(postgres.Open(cfg.DbURL), &gorm.Config{})
 
 		case "sqlite":
