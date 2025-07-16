@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/codetheuri/todolist/internal/app/services"
+	"github.com/codetheuri/todolist/internal/app/modules/todo/services"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/pagination"
@@ -109,7 +109,28 @@ func (h *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// UpdateTodo
+func (h *TodoHandler) GetAllIncludingDeleted(w http.ResponseWriter, r *http.Request) {
+	h.log.Debug("Handler: Received GetAllIncludingDeleted request")
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = pagination.DefaultPage
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 || limit > pagination.MaxLimit {
+		limit = pagination.DefaultLimit
+	}
+
+	p, err := h.todoService.GetAllIncludingDeleted(page, limit)
+	if err != nil {
+		h.log.Error("Handler: Service call failed for GetAllIncludingDeleted", err)
+		web.RespondError(w, err, http.StatusInternalServerError)
+		return
+	}
+	web.RespondJSON(w, http.StatusOK, p)
+	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
+}
 func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received UpdateTodo request")
 	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
@@ -138,28 +159,6 @@ func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 	web.RespondJSON(w, http.StatusOK, res)
 	h.log.Info("Handler: Todo updated successfully", "todoID", res.ID)
-}
-func (h *TodoHandler) GetAllIncludingDeleted(w http.ResponseWriter, r *http.Request) {
-	h.log.Debug("Handler: Received GetAllIncludingDeleted request")
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		page = pagination.DefaultPage
-	}
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > pagination.MaxLimit {
-		limit = pagination.DefaultLimit
-	}
-
-	p, err := h.todoService.GetAllIncludingDeleted(page, limit)
-	if err != nil {
-		h.log.Error("Handler: Service call failed for GetAllIncludingDeleted", err)
-		web.RespondError(w, err, http.StatusInternalServerError)
-		return
-	}
-	web.RespondJSON(w, http.StatusOK, p)
-	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
 }
 
 // DeleteTodo

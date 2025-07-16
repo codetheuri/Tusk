@@ -5,10 +5,9 @@ import (
 	"net/http"
 
 	"github.com/codetheuri/todolist/config"
-	"github.com/codetheuri/todolist/internal/app/handlers"
-	"github.com/codetheuri/todolist/internal/app/repositories"
+	"github.com/codetheuri/todolist/internal/app/modules"
+	todoModule "github.com/codetheuri/todolist/internal/app/modules/todo"
 	router "github.com/codetheuri/todolist/internal/app/routers"
-	"github.com/codetheuri/todolist/internal/app/services"
 	"github.com/codetheuri/todolist/internal/platform/database"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/middleware"
@@ -29,14 +28,16 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	//initilialize app components
 	appValidator := validators.NewValidator()
 
-	//initialize the repositories
-	todoRepo := repositories.NewGormTodoRepository(db, log)
-	//initilliaze services
-	todoService := services.NewTodoService(todoRepo, appValidator, log)
-	// initialize the handlers
-	todoHandler := handlers.NewTodoHandler(todoService, log)
-	// Setup HTTP Router
-	mainRouter := router.NewRouter(todoHandler, log)
+	//application modules
+	var appModules []modules.Module
+
+	appModules = append(appModules, todoModule.NewModule(db, log, appValidator))
+
+	//register routes from all modules
+	mainRouter := router.NewRouter(log)
+	for _, module := range appModules {
+		module.RegisterRoutes(mainRouter)
+	}
 
 	//middleware
 	var handler http.Handler = mainRouter

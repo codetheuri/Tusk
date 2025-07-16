@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codetheuri/todolist/internal/app/models"
-	"github.com/codetheuri/todolist/internal/app/repositories"
+	"github.com/codetheuri/todolist/internal/app/modules/todo/models"
+	"github.com/codetheuri/todolist/internal/app/modules/todo/repositories"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/pagination"
@@ -43,6 +43,7 @@ type TodoResponse struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Completed   bool   `json:"completed"`
+	DeletedAt   string `json:"deleted_at,omitempty"` 
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }
@@ -126,6 +127,7 @@ func (s *todoService) GetAllTodos(page, limit int) (*pagination.Pagination, erro
 			Title:       todo.Title,
 			Description: todo.Description,
 			Completed:   todo.Completed,
+			DeletedAt:  todo.DeletedAt.Time.Format("2006-01-02 15:04:05"),
 			CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
@@ -198,6 +200,7 @@ func (s *todoService) GetAllIncludingDeleted(page, limit int) (*pagination.Pagin
 			Title:       todo.Title,
 			Description: todo.Description,
 			Completed:   todo.Completed,
+			DeletedAt:   todo.DeletedAt.Time.Format("2006-01-02 15:04:05"),
 			CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
@@ -257,6 +260,7 @@ func (s *todoService) toTodoResponse(todo *models.Todo) *TodoResponse {
 		Title:       todo.Title,
 		Description: todo.Description,
 		Completed:   todo.Completed,
+		DeletedAt:  todo.DeletedAt.Time.Format("2006-01-02 15:04:05"),
 		CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
