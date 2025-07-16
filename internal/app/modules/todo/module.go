@@ -11,7 +11,7 @@ import (
 )
 
 type Module struct {
-	Handers *todoHandlers.TodoHandler
+	Handlers *todoHandlers.TodoHandler
 }
 
 func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) *Module {
@@ -25,19 +25,19 @@ func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) 
 	todoHandler := todoHandlers.NewTodoHandler(todoService, log)
 
 	return &Module{
-		Handers: todoHandler,
+		Handlers: todoHandler,
 	}
 }
 
 func (m *Module) RegisterRoutes(r chi.Router) {
 	// Register the routes for the todo module
 	r.Route("/todos", func(r chi.Router) {
-		r.Post("/", m.Handers.CreateTodo)
-		r.Get("/{id}", m.Handers.GetTodoByID)
-		r.Get("/", m.Handers.GetAllTodos)
-		r.Put("/{id}", m.Handers.UpdateTodo)
-		r.Delete("/{id}", m.Handers.SoftDeleteTodo)
-		r.Patch("/{id}/restore", m.Handers.RestoreTodo)
-		r.Delete("/{id}/hard", m.Handers.HardDeleteTodo)
+		r.Post("/", m.Handlers.CreateTodo)
+		r.Get("/{id}", m.Handlers.GetTodoByID)
+		r.Get("/", m.Handlers.GetAllTodos)
+		r.Put("/{id}", m.Handlers.UpdateTodo)
+		r.Delete("/{id}", m.Handlers.SoftDeleteTodo)
+		r.Patch("/{id}/restore", m.Handlers.RestoreTodo)
+		r.Delete("/{id}/hard", m.Handlers.HardDeleteTodo)
 	})
 }
