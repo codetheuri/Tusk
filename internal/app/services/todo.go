@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -14,11 +15,14 @@ import (
 
 // interface
 type TodoService interface {
-	CreateTodo(createReq *CreateTodoRequest) (*TodoResponse, error)
+	CreateTodo(ctx context.Context,createReq *CreateTodoRequest) (*TodoResponse, error)
 	GetTodoByID(id uint) (*TodoResponse, error)
 	GetAllTodos(page, limit int) (*pagination.Pagination, error)
 	UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, error)
-	DeleteTodo(id uint) error
+	GetAllIncludingDeleted(page, limit int) (*pagination.Pagination, error)
+	SoftDeleteTodo(id uint) error
+	RestoreTodo(id uint) error
+	HardDeleteTodo(id uint) error
 }
 
 // implement dtos
@@ -60,7 +64,7 @@ func NewTodoService(repo repositories.TodoRepository, validator *validators.Vali
 }
 
 // CreateTodo
-func (s *todoService) CreateTodo(createReq *CreateTodoRequest) (*TodoResponse, error) {
+func (s *todoService) CreateTodo(ctx context.Context,createReq *CreateTodoRequest) (*TodoResponse, error) {
 	//validate
 	fieldErrors := s.validator.Struct(createReq)
 	if fieldErrors != nil {
@@ -76,7 +80,7 @@ func (s *todoService) CreateTodo(createReq *CreateTodoRequest) (*TodoResponse, e
 		Completed:   createReq.Completed,
 	}
 	//persist
-	createdTodo, err := s.repo.CreateTodo(todo)
+	createdTodo, err := s.repo.CreateTodo(ctx,todo)
 	if err != nil {
 		s.log.Error("service: failed to create todo in repository", err)
 
@@ -175,12 +179,41 @@ func (s *todoService) UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, e
 		return nil, err
 	}
 	return s.toTodoResponse(updatedTodo), nil
+
+}
+// get all including deleted
+func (s *todoService) GetAllIncludingDeleted(page, limit int) (*pagination.Pagination, error) {
+
+	p := &pagination.Pagination{Page: page, Limit: limit}
+	todos, err := s.repo.GetAllIncludingDeleted(p)
+	if err != nil {
+		s.log.Error("service: failed to get all todos including deleted", err)
+		return nil, err
+	}
+	
+	todoResponses := make([]TodoResponse, len(todos))
+	for i, todo := range todos {
+		todoResponses[i] = TodoResponse{
+			ID:          todo.ID,
+			Title:       todo.Title,
+			Description: todo.Description,
+			Completed:   todo.Completed,
+			CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+	}	
+	rowsInterface := make([]interface{}, len(todoResponses))
+	for i, v := range todoResponses {
+		rowsInterface[i] = v
+	}
+	p.Rows = rowsInterface
+	return p, nil
 }
 
-// delete
-func (s *todoService) DeleteTodo(id uint) error {
+// soft delete
+func (s *todoService) SoftDeleteTodo(id uint) error {
 	// call
-	err := s.repo.DeleteTodo(id)
+	err := s.repo.SoftDeleteTodo(id)
 	if err != nil {
 		s.log.Error("serrvice: failed to delete todo from repository", err, "id", id)
 		var notFoundErr appErrors.AppError
@@ -191,7 +224,32 @@ func (s *todoService) DeleteTodo(id uint) error {
 	}
 	return nil
 }
+func (s *todoService) RestoreTodo(id uint) error {
 
+	err := s.repo.RestoreTodo(id)
+	if err != nil {
+		s.log.Error("service: failed to restore todo from repository", err, "id", id)
+		var notFoundErr appErrors.AppError
+		if errors.As(err, &notFoundErr) && notFoundErr.Code() == "NOT_FOUND" {
+			return appErrors.NotFoundError(fmt.Sprintf("todo with ID %d not found", id), err)
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *todoService) HardDeleteTodo(id uint) error {
+	err := s.repo.HardDeleteTodo(id)
+	if err != nil {
+		s.log.Error("service: failed to hard delete todo from repository", err, "id", id)
+		var notFoundErr appErrors.AppError
+		if errors.As(err, &notFoundErr) && notFoundErr.Code() == "NOT_FOUND" {
+			return appErrors.NotFoundError(fmt.Sprintf("todo with ID %d not found", id), err)
+		}
+		return err
+	}
+	return nil
+}
 // helper convert models.Todo to TodoResponse
 func (s *todoService) toTodoResponse(todo *models.Todo) *TodoResponse {
 	return &TodoResponse{

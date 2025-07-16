@@ -6,14 +6,13 @@ import (
 
 	"github.com/codetheuri/todolist/config"
 	"github.com/codetheuri/todolist/internal/app/handlers"
-	"github.com/codetheuri/todolist/internal/app/models"
 	"github.com/codetheuri/todolist/internal/app/repositories"
+	router "github.com/codetheuri/todolist/internal/app/routers"
 	"github.com/codetheuri/todolist/internal/app/services"
 	"github.com/codetheuri/todolist/internal/platform/database"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/middleware"
 	"github.com/codetheuri/todolist/pkg/validators"
-	"github.com/codetheuri/todolist/internal/app/routers"
 	// "github.com/codetheuri/todolist/pkg/validators"
 )
 
@@ -24,16 +23,6 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-
-	log.Info("Running migrations...")
-	// err = db.Migrator().CreateTable(&models.Todo{})
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create table: %w", err)
-	// }
-	if err := db.AutoMigrate(&models.Todo{}); err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
-	}
-	log.Info("Migrations completed successfully")
 
 	//initialize the router
 
@@ -48,8 +37,6 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	todoHandler := handlers.NewTodoHandler(todoService, log)
 	// Setup HTTP Router
 	mainRouter := router.NewRouter(todoHandler, log)
-	
-
 
 	//middleware
 	var handler http.Handler = mainRouter

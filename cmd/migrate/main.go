@@ -11,6 +11,7 @@ import (
 
 	"github.com/codetheuri/todolist/config"
 	"github.com/codetheuri/todolist/database/migrations"
+	"github.com/codetheuri/todolist/database/seeders"
 	"gorm.io/gorm"
 )
 
@@ -39,9 +40,11 @@ func main() {
 	downCmd := flag.NewFlagSet("down", flag.ExitOnError)
 	createCmd := flag.NewFlagSet("create", flag.ExitOnError)
 	freshcmd := flag.NewFlagSet("fresh", flag.ExitOnError)
+	seeders := flag.NewFlagSet("seeders", flag.ExitOnError)
 
 	downSteps := downCmd.Int("steps", 1, "Number of migrations to revert")
 	createName := createCmd.String("name", "", "Name of the new migration (e.g create_users_table)")
+	seedName := seeders.String("name", "", "Optional : Name of specific seeder to run (eg. 01UsersTableSeeder)")
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
 		fmt.Println("Commands:")
@@ -49,6 +52,8 @@ func main() {
 		fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
 		fmt.Println("  create -name NAME Generate a new migration file")
 		fmt.Println("fresh            Drop all tables and reapply all migrations")
+		fmt.Println("seed   	  Run all registered seeders")
+		fmt.Println("seed [-name NAME] Run a specific seeder")
 		os.Exit(1)
 	}
 
@@ -89,6 +94,11 @@ func main() {
 		log.Println("Dropping all tables and reapplying all migrations...")
 		runFresh(db)
 		log.Println("Fresh migration completed successfully.")
+	case "seed":
+		seeders.Parse(os.Args[2:])
+		log.Println("Running all registered seeders...")
+		runSeeders(db, *seedName)
+		log.Println("Database seeding completed.")
 	case "help":
 		fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
 		fmt.Println("Commands:")
@@ -97,6 +107,8 @@ func main() {
 		fmt.Println("  create -name NAME Generate a new migration file")
 		fmt.Println("  help            Show this help message")
 		fmt.Println("  fresh           Drop all tables and reapply all migrations")
+		fmt.Println("  seed            Run all registered seeders")
+		fmt.Println("  seed -name NAME Run a specific seeder")
 		os.Exit(0)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
@@ -271,8 +283,8 @@ func runFresh(db *gorm.DB) {
 	if len(tableNames) > 0 {
 		log.Printf("Dropping %d tables: %v\n", len(tableNames), tableNames)
 		tablesAsInterfaces := make([]interface{}, len(tableNames))
-		for i, tablename := range tableNames{
-			tablesAsInterfaces[i] =tablename
+		for i, tablename := range tableNames {
+			tablesAsInterfaces[i] = tablename
 		}
 		if err := migrator.DropTable(tablesAsInterfaces...); err != nil {
 			log.Fatalf("Failed to drop tables: %v", err)
@@ -291,4 +303,39 @@ func runFresh(db *gorm.DB) {
 	runMigrations(db, "up")
 	log.Println("All migration re-applied.")
 
+}
+
+func runSeeders(db *gorm.DB, seederName string) {
+	if len(seeders.RegisteredSeeders) == 0 {
+		log.Println("No database seeders registered.")
+		return
+	}
+    
+	sort.Slice(seeders.RegisteredSeeders, func(i, j int) bool {
+		return seeders.RegisteredSeeders[i].Name() < seeders.RegisteredSeeders[j].Name()
+	})
+   
+	for _, s := range seeders.RegisteredSeeders {
+		if seederName != "" && s.Name() != seederName {
+			log.Printf("Skipping seeder: %s (not '%s')\n", s.Name(), seederName)
+			continue
+		}
+		log.Printf("Executing seeder: %s", s.Name())
+		if err := s.Run(db); err != nil {
+			log.Fatalf("Failed to run seeder %s: %v", s.Name(), err)
+		}
+		log.Printf("Seeder %s completed.", s.Name())
+	}
+    if seederName != "" {
+		found := false
+		for _, s := range seeders.RegisteredSeeders {
+			if s.Name() == seederName {
+				found = true
+				break
+			}
+		}
+		if !found {
+		log.Fatalf("Error: seeder '%s' not found ", seederName)
+		}
+	}
 }

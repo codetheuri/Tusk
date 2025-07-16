@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
-	"math"
+	"time"
 
 	"github.com/codetheuri/todolist/internal/app/services"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
@@ -37,7 +39,9 @@ func (h *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//call service
-	res, err := h.todoService.CreateTodo(&req)
+	ctx, cancel := context.WithTimeout(r.Context(), 5* time.Second)
+	defer cancel()
+	res, err := h.todoService.CreateTodo(ctx,&req)
 	if err != nil {
 		h.log.Error("Handler: Service call failed", err)
 		web.RespondError(w, err, http.StatusInternalServerError)
@@ -135,9 +139,31 @@ func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	web.RespondJSON(w, http.StatusOK, res)
 	h.log.Info("Handler: Todo updated successfully", "todoID", res.ID)
 }
+func (h *TodoHandler) GetAllIncludingDeleted(w http.ResponseWriter, r *http.Request) {
+	h.log.Debug("Handler: Received GetAllIncludingDeleted request")
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = pagination.DefaultPage
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 || limit > pagination.MaxLimit {
+		limit = pagination.DefaultLimit
+	}
+
+	p, err := h.todoService.GetAllIncludingDeleted(page, limit)
+	if err != nil {
+		h.log.Error("Handler: Service call failed for GetAllIncludingDeleted", err)
+		web.RespondError(w, err, http.StatusInternalServerError)
+		return
+	}
+	web.RespondJSON(w, http.StatusOK, p)
+	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
+}
 
 // DeleteTodo
-func (h *TodoHandler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
+func (h *TodoHandler) SoftDeleteTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: received DeleteTodo request")
 
 	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
@@ -149,7 +175,7 @@ func (h *TodoHandler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//call service
-	err = h.todoService.DeleteTodo(uint(id))
+	err = h.todoService.SoftDeleteTodo(uint(id))
 	if err != nil {
 		h.log.Error("Handler: Service call failed for DeleteTodo", err, "todoID", id)
 		web.RespondError(w, err, http.StatusInternalServerError)
@@ -157,4 +183,44 @@ func (h *TodoHandler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
 	}
 	web.RespondJSON(w, http.StatusNoContent, nil)
 	h.log.Info("Handler: Todo deleted successfully", "todoID", id)
+}
+func (h *TodoHandler) RestoreTodo(w http.ResponseWriter, r *http.Request) {
+	h.log.Debug("Handler: Received RestoreTodo request")
+	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		h.log.Warn("Handler: Invalid ID format in RestoreTodo request", "idStr", idStr, "error", err)
+		web.RespondError(w, appErrors.ValidationError("Invalid todo ID format", err, nil), http.StatusBadRequest)
+		return
+	}
+	//call service
+	err = h.todoService.RestoreTodo(uint(id))
+	if err != nil {
+		h.log.Error("Handler: Service call failed for RestoreTodo", err, "todoID", id)
+		web.RespondError(w, err, http.StatusInternalServerError)
+		return
+	}
+	web.RespondJSON(w, http.StatusNoContent, nil)
+	h.log.Info("Handler: Todo restored successfully", "todoID", id)
+}
+func (h *TodoHandler) HardDeleteTodo(w http.ResponseWriter, r *http.Request) {
+	h.log.Debug("Handler: Received HardDeleteTodo request")
+	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		h.log.Warn("Handler: Invalid ID format in HardDeleteTodo request", "idStr", idStr, "error", err)
+		web.RespondError(w, appErrors.ValidationError("Invalid todo ID format", err, nil), http.StatusBadRequest)
+		return
+	}
+
+	err = h.todoService.HardDeleteTodo(uint(id))
+	if err != nil {
+		h.log.Error("Handler: Service call failed for HardDeleteTodo", err, "todoID", id)
+		web.RespondError(w, err, http.StatusInternalServerError)
+		return
+	}
+	web.RespondJSON(w, http.StatusNoContent, nil)
+	h.log.Info("Handler: Todo hard deleted successfully", "todoID", id)
 }

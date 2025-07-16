@@ -30,7 +30,11 @@ func NewRouter(h *handlers.TodoHandler, log logger.Logger) http.Handler {
 
 		r.Get("/{id}", h.GetTodoByID)
 		r.Put("/{id}", h.UpdateTodo)
-		r.Delete("/{id}", h.DeleteTodo)
+		r.Get("/all", h.GetAllIncludingDeleted)
+		r.Delete("/{id}", h.SoftDeleteTodo)
+		r.Patch("/{id}", h.RestoreTodo) 
+		r.Delete("/hard/{id}", h.HardDeleteTodo)
+	
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		log.Warn("Route not found", "path", r.URL.Path, "method", r.Method)
