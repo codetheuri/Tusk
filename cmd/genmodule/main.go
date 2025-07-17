@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,8 +26,9 @@ import (
 	{{.ModuleName}}Services "{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/services"
 	"{{.ProjectRoot}}/pkg/logger"
 	"{{.ProjectRoot}}/pkg/validators"
-	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi"
 	"gorm.io/gorm"
+	"net/http"
 )
 
 // Module represents the {{.CapitalizedModuleName}} module.
@@ -37,7 +39,7 @@ type Module struct {
 
 // NewModule initializes  {{.CapitalizedModuleName}} module.
 func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) *Module {
-     repo := {{.ModuleName}}Repositories.NewGorm{{.CapitalizedModuleName}}Repository(db, log)
+     repo := {{.ModuleName}}Repositories.New{{.CapitalizedModuleName}}Repository(db, log)
 	 service := {{.ModuleName}}Services.New{{.CapitalizedModuleName}}Service(repo, validator, log)
 	 handler := {{.ModuleName}}Handlers.New{{.CapitalizedModuleName}}Handler(service, log)
 
@@ -49,9 +51,13 @@ func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) 
 // RegisterRoutes registers the routes for the {{.CapitalizedModuleName}} module.
 func (m *Module) RegisterRoutes(r chi.Router) {
 	// Register the routes for the {{.ModuleName}} module
-	r.Route("/{{.ModuleName}}s", func(r chi.Router) {
-		r.Post("/", m.Handlers.Create{{.CapitalizedModuleName}})
-		r.Get("/", m.Handlers.GetAll{{.CapitalizedModuleName}}s)
+	r.Route("/{{.ModuleName}}", func(r chi.Router) {
+	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Module {{.ModuleName}} is working!"))
+	})
+		//r.Post("/", m.Handlers.Create{{.CapitalizedModuleName}})
+		//r.Get("/", m.Handlers.GetAll{{.CapitalizedModuleName}}s)
 		
 	})
 }
@@ -59,21 +65,21 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 
 const handlersGoTemplate = `package handlers
 import (
-   	"context"
-	"net/http"
+   //	"context"
+	//"net/http"
 	{{.ModuleName}}Services "{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/services"
 	"{{.ProjectRoot}}/pkg/logger"
-	"{{.ProjectRoot}}/pkg/web"
-	"{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/models"
+	//"{{.ProjectRoot}}/pkg/web"
+	//"{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/models"
 )
 
 type {{.CapitalizedModuleName}}Handler struct {
-       {{.ModuleName}}Service *{{.ModuleName}}Services.{{.CapitalizedModuleName}}Service
+       {{.ModuleName}}Service {{.ModuleName}}Services.{{.CapitalizedModuleName}}Service
 	   log logger.Logger
 }
 
 // constructor for {{.CapitalizedModuleName}}Handler
-func New{{.CapitalizedModuleName}}Handler({{.ModuleName}}Service *{{.ModuleName}}Services.{{.CapitalizedModuleName}}Service, log logger.Logger) *{{.CapitalizedModuleName}}Handler {
+func New{{.CapitalizedModuleName}}Handler({{.ModuleName}}Service {{.ModuleName}}Services.{{.CapitalizedModuleName}}Service, log logger.Logger) *{{.CapitalizedModuleName}}Handler {
 	return &{{.CapitalizedModuleName}}Handler{
 		{{.ModuleName}}Service: {{.ModuleName}}Service,
 		log: log,
@@ -93,9 +99,9 @@ func New{{.CapitalizedModuleName}}Handler({{.ModuleName}}Service *{{.ModuleName}
 
 const servicesGoTemplate = `package services
 import (
-	"context"
+	//"context"
 	{{.ModuleName}}Repositories "{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/repositories"
-	"{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/models"
+	//"{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/models"
 	"{{.ProjectRoot}}/pkg/logger"
 	"{{.ProjectRoot}}/pkg/validators"
 )
@@ -105,15 +111,15 @@ type {{.CapitalizedModuleName}}Service interface {
 	//Get{{.CapitalizedModuleName}}ByID(ctx context.Context, id int) (*models.{{.CapitalizedModuleName}}, error)
 }
 
-type {{.CapitalizedModuleName}}Service struct {
-	{{.ModuleName}}Repo {{.ModuleName}}Repositories.{{.CapitalizedModuleName}}Repository
+type {{.ModuleName}}Service struct {
+	Repo {{.ModuleName}}Repositories.{{.CapitalizedModuleName}}Repository
 	validator *validators.Validator
 	log logger.Logger
 }
 
 //service constructor
-func New{{.CapitalizedModuleName}}Service({{.ModuleName}}Repo {{.ModuleName}}Repositories.{{.CapitalizedModuleName}}Repository, validator *validators.Validator, log logger.Logger) *{{.CapitalizedModuleName}}Service {
-	return &{{.CapitalizedModuleName}}Service{
+func New{{.CapitalizedModuleName}}Service(Repo {{.ModuleName}}Repositories.{{.CapitalizedModuleName}}Repository, validator *validators.Validator, log logger.Logger) {{.CapitalizedModuleName}}Service {
+	return &{{.ModuleName}}Service{
 		Repo: Repo,
 		validator: validator,
 		log: log,
@@ -129,8 +135,8 @@ func New{{.CapitalizedModuleName}}Service({{.ModuleName}}Repo {{.ModuleName}}Rep
 `
 const repositoriesGoTemplate = `package repositories
  import (
-      "context"
-	  "{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/models"
+    //  "context"
+	//  "{{.ProjectRoot}}/internal/app/modules/{{.ModuleName}}/models"
 	  "{{.ProjectRoot}}/pkg/logger"
 	  "gorm.io/gorm"
  )
@@ -139,11 +145,17 @@ const repositoriesGoTemplate = `package repositories
 	// Example method:
 	// Create{{.CapitalizedModuleName}}(ctx context.Context, {{.ModuleName}} *models.{{.CapitalizedModuleName}}) error
 }
-	type gorm{{.CapitalizedModuleName}}Repository struct {
+	type {{.ModuleName}}Repository struct {
 	db *gorm.DB
 	log logger.Logger 
 	}
-
+	// repo constructor
+func New{{.CapitalizedModuleName}}Repository(db *gorm.DB, log logger.Logger) {{.CapitalizedModuleName}}Repository {	
+	return &{{.ModuleName}}Repository{
+		db: db,
+		log: log,
+	}
+	}
 	//repos methods
 	//eg.
 	// func (r *gorm{{.CapitalizedModuleName}}Repository) Create{{.CapitalizedModuleName}}(ctx context.Context, {{.ModuleName}} *models.{{.CapitalizedModuleName}}) error {
@@ -162,12 +174,35 @@ func main(){
 	moduleName := strings.ToLower(os.Args[1])
 	capitalizedModuleName := strings.ToUpper(moduleName[:1]) + moduleName[1:]
 
+	if strings.Contains(moduleName, "-") || strings.Contains(moduleName, "_") {
+		fmt.Println("Module name cannot contain '-' or '_' characters. Please use a valid module name.")
+		os.Exit(1)
+	}
+	if moduleName == "main" || moduleName == "cmd" || moduleName == "internal" || moduleName == "pkg" {
+		fmt.Printf("Module name '%s' is reserved. Please choose a different name.\n", moduleName)
+		os.Exit(1)
+	}
+
 	moduleData := ModuleData{
 		ModuleName: moduleName,
 		CapitalizedModuleName: capitalizedModuleName,
 		ProjectRoot: projectGoModulePath,
 	}
 	basePath := filepath.Join("internal", "app", "modules", moduleName)
+
+	if _, err := os.Stat(basePath); !os.IsNotExist(err) {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("Module '%s' already exists at %s . Overwrite? (Y/N): ", moduleName, basePath)
+
+		response, _ := reader.ReadString('\n')
+		response = strings.ToLower(strings.TrimSpace(response))
+
+		if response != "y"{
+			fmt.Println("Operation cancelled")
+			os.Exit(0)
+		}
+		fmt.Printf("proceeding to overwrite module '%s'....\n", moduleName)
+	}
 
 	dirs := []string{
 		basePath,
@@ -216,7 +251,7 @@ func main(){
 
 	fmt.Printf("\nModule '%s' generated successfully. Remember to:\n", moduleName)
 	fmt.Println("- Add it to 'internal/bootstrap/app.go' in the appModules slice.")
-	fmt.Printf("- **Crucially, create your model file(s) in 'internal/app/modules/%s/models/' (e.g., %s.go) and define your structs with 'package models'.**", moduleName, moduleName)
+	fmt.Printf("- **Crucially, create your model file(s) in 'internal/app/modules/%s/models/'.**\n",  moduleName)
 	fmt.Println("- Adjust generated boilerplate code (e.g., imports, methods, model usage).")
 	fmt.Println("- Run 'go mod tidy' after adding to app.go.")
 

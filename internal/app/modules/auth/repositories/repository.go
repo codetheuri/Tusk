@@ -1,24 +1,20 @@
 package repositories
+ import (
+    //  "context"
+	//  "github.com/codetheuri/todolist/internal/app/modules/auth/models"
+	  "github.com/codetheuri/todolist/pkg/logger"
+	  "gorm.io/gorm"
+ )
 
-import (
-	"github.com/codetheuri/todolist/pkg/logger"
-	"gorm.io/gorm"
-)
+	type AuthRepository struct {
+	 UserRepo         UserRepository
+    RevokedTokenRepo RevokedTokenRepository
+	}
+	// repo constructor
+func NewAuthRepository(db *gorm.DB, log logger.Logger) *AuthRepository {	
+	return &AuthRepository{
+		UserRepo: 	   NewUserRepository(db, log),
+		RevokedTokenRepo: NewRevokedTokenRepository(db, log),
+	}
+	}
 
-// define interface
-type AuthRepository interface {
-	// Example method:
-	// CreateAuth(ctx context.Context, auth *models.Auth) error
-}
-type gormAuthRepository struct {
-	db  *gorm.DB
-	log logger.Logger
-}
-
-//repos methods
-//eg.
-// func (r *gormAuthRepository) CreateAuth(ctx context.Context, auth *models.Auth) error {
-// 	r.log.Info("CreateAuth repository ")
-// 	// Placeholder for actual database logic
-// 	return nil
-// }

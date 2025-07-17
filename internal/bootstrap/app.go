@@ -6,7 +6,9 @@ import (
 
 	"github.com/codetheuri/todolist/config"
 	"github.com/codetheuri/todolist/internal/app/modules"
+
 	todoModule "github.com/codetheuri/todolist/internal/app/modules/todo"
+	authModule  "github.com/codetheuri/todolist/internal/app/modules/auth"
 	router "github.com/codetheuri/todolist/internal/app/routers"
 	"github.com/codetheuri/todolist/internal/platform/database"
 	"github.com/codetheuri/todolist/pkg/logger"
@@ -32,6 +34,7 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	var appModules []modules.Module
 
 	appModules = append(appModules, todoModule.NewModule(db, log, appValidator))
+	appModules = append(appModules, authModule.NewModule( db, log, appValidator)) // Example of adding a new module
 
 	//register routes from all modules
 	mainRouter := router.NewRouter(log)
@@ -47,7 +50,8 @@ func Run(cfg *config.Config, log logger.Logger) error {
 
 	//Start Server
 	serverAddr := fmt.Sprintf(":%d", cfg.ServerPort)
-	log.Info(fmt.Sprintf("Server starting on %s", serverAddr))
+	// serverAddr := ":8080"
+	log.Info(fmt.Sprintf("Server starting on %v", serverAddr))
 	if err := http.ListenAndServe(serverAddr, handler); err != nil {
 		return fmt.Errorf("server failed to start: %w", err)
 	}

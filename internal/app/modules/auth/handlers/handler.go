@@ -1,20 +1,23 @@
 package handlers
-
 import (
+   //	"context"
+	//"net/http"
 	authServices "github.com/codetheuri/todolist/internal/app/modules/auth/services"
 	"github.com/codetheuri/todolist/pkg/logger"
+	//"github.com/codetheuri/todolist/pkg/web"
+	//"github.com/codetheuri/todolist/internal/app/modules/auth/models"
 )
 
 type AuthHandler struct {
-	authService *authServices.AuthService
-	log         logger.Logger
+       authService authServices.AuthService
+	   log logger.Logger
 }
 
 // constructor for AuthHandler
-func NewAuthHandler(authService *authServices.AuthService, log logger.Logger) *AuthHandler {
+func NewAuthHandler(authService authServices.AuthService, log logger.Logger) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
-		log:         log,
+		log: log,
 	}
 }
 

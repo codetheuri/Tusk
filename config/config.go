@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/codetheuri/todolist/pkg/errors"
 	"gorm.io/driver/mysql"
@@ -27,6 +28,7 @@ type Config struct {
 	ServerPort        int
 	LOG_LEVEL         string
 	JWTSecret         string
+	AccessTokenTTL    time.Duration `mapstructure:"ACCESS_TOKEN_TTL"`
 	AppName           string
 	AppVersion        string
 	AppMode           string
@@ -50,6 +52,7 @@ func LoadConfig() (*Config, error) {
 		DBDriver:          os.Getenv("DB_DRIVER"),
 		LOG_LEVEL:         os.Getenv("LOG_LEVEL"),
 		JWTSecret:         os.Getenv("JWT_SECRET"),
+		// AccessTokenTTL:    os.Getenv("ACCESS_TOKEN_TTL"),
 		AppName:           os.Getenv("APP_NAME"),
 		AppVersion:        os.Getenv("APP_VERSION"),
 		AppMode:           os.Getenv("APP_MODE"),
@@ -82,6 +85,7 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, errors.ConfigError(fmt.Sprintf("Invalid SERVER_PORT value : %s", serverPortStr), err)
 	}
+
 	cfg.ServerPort = serverPort
 
 	//basic validation

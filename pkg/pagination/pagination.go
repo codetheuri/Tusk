@@ -46,3 +46,20 @@ func Paginate( p *Pagination) func(db *gorm.DB) *gorm.DB {
 		return tx.Offset(offset).Limit(p.Limit)
 	}
 }
+func NewPaginationParams(page, limit int) *Pagination {
+	p := &Pagination{Page: page, Limit: limit}
+	if p.Page < 1 {
+		p.Page = DefaultPage
+	}
+	if p.Limit < 1 || p.Limit > MaxLimit {
+		p.Limit = DefaultLimit
+	}
+	return p
+}
+func (p *Pagination) CalculateTotalPages() {
+	if p.Limit > 0 {
+		p.TotalPages = int(math.Ceil(float64(p.TotalRows) / float64(p.Limit)))
+	} else {
+		p.TotalPages = 0
+	}
+}
