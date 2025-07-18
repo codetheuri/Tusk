@@ -1,35 +1,27 @@
 package services
+
 import (
-	//"context"
+	"time"
 	authRepositories "github.com/codetheuri/todolist/internal/app/modules/auth/repositories"
 	//"github.com/codetheuri/todolist/internal/app/modules/auth/models"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/validators"
 )
-	//define methods
-type AuthService interface {
-	// Define mthods here : eg
-	//GetAuthByID(ctx context.Context, id int) (*models.Auth, error)
+type AuthService struct {
+	UserService  UserService
+	TokenService TokenService
 }
-
-type authService struct {
-	Repo authRepositories.AuthRepository
-	validator *validators.Validator
-	log logger.Logger
-}
-
-//service constructor
-func NewAuthService(Repo authRepositories.AuthRepository, validator *validators.Validator, log logger.Logger) AuthService {
-	return &authService{
-		Repo: Repo,
-		validator: validator,
-		log: log,
+// service constructor for all services
+func NewAuthService(
+	repos *authRepositories.AuthRepository,
+	validator *validators.Validator,
+	jwtSecret string,
+	tokenTTL time.Duration,
+	log logger.Logger) *AuthService {
+	return &AuthService{
+	   UserService: NewUserService(repos.UserRepo, validator, log),
+	   TokenService: NewTokenService(repos.RevokedTokenRepo, jwtSecret, tokenTTL, log),
 	}
 }
 
-//methods
-// func (s *authService) GetAuthByID(ctx context.Context, id uint) (*models.Auth, error) {
-// 	s.log.Info("GetAuthByID service invoked")
-// 	// Placeholder for actual logic
-// 	return nil, nil
-// }
+

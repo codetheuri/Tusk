@@ -20,8 +20,8 @@ type Module struct {
 // NewModule initializes  Auth module.
 func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) *Module {
      repo := authRepositories.NewAuthRepository(db, log)
-	 service := authServices.NewAuthService(*repo , validator, log)
-	 handler := authHandlers.NewAuthHandler(service, log)
+	 service := authServices.NewAuthService(repo , validator, jwtSecret, tokenTTL, log)
+	 handler := authHandlers.NewAuthHandler(*service, log)
 
 	return &Module{
 		Handlers: handler,	
