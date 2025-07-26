@@ -8,3 +8,20 @@ type User struct {
 	Password string `gorm:"not null" json:"-" validate:"required,min=8"`
 	Role     string `gorm:"not null;default:'user'" json:"role"`
 }
+
+type RegisterRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Role     string `json:"role" validate:"required,oneof=user admin"`
+}
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+type AuthResponse struct {
+	UserID    uint   `json:"user_id"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	Token     string `json:"token"`     
+	ExpiresAt int64  `json:"expires_at"` 
+}

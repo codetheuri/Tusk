@@ -1,3 +1,4 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/codetheuri/Tusk.svg)](https://pkg.go.dev/github.com/codetheuri/Tusk)
 # Build
 Tusk: the sharpest Go starter for building APIs
 ## Usage
