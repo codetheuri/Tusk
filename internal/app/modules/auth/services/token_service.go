@@ -26,6 +26,7 @@ type TokenService interface {
 	RevokeToken(ctx context.Context, jti string, expiresAt time.Time) error
 	IsTokenBlacklisted(ctx context.Context, jti string) (bool, error)
 	CleanExpiredRevokedTokens(ctx context.Context) error
+	GetTokenTTL() time.Time 
 }
 
 type tokenService struct {
@@ -75,7 +76,9 @@ func (s *tokenService) GenerateAuthTokens(ctx context.Context, user *models.User
 	s.log.Info("JWT generated successfully", "userID", user.ID, "jti", jti)
 	return tokenString, nil
 }
-
+func (s *tokenService) GetTokenTTL() time.Time {
+    return time.Now().Add(s.tokenTTL)
+}
 func (s *tokenService) ValidateToken(ctx context.Context, tokenString string) (*Claims, error) {
 	s.log.Debug("Validating JWT token")
 

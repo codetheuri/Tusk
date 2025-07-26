@@ -34,7 +34,7 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	var appModules []modules.Module
 
 	appModules = append(appModules, todoModule.NewModule(db, log, appValidator))
-	appModules = append(appModules, authModule.NewModule( db, log, appValidator)) // Example of adding a new module
+	appModules = append(appModules, authModule.NewModule( db, log, appValidator,cfg)) // Example of adding a new module
 
 	//register routes from all modules
 	mainRouter := router.NewRouter(log)
