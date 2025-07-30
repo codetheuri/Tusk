@@ -49,7 +49,7 @@ func GetUserIDFromContext(ctx context.Context)(uint, bool){
 	val:= ctx.Value(ContextKeyUserID)
 	if idStr, ok := val.(string); ok{
 		if id, err := strconv.ParseUint(idStr, 10,64); err == nil{
-			if id <= uint64(math.MaxUint) {
+			if id <= uint64(^uint(0)) {
 				return uint(id), true
 			}
 		}
