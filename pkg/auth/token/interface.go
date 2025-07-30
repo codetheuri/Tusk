@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 	"time"
-
+	"math"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -49,7 +49,9 @@ func GetUserIDFromContext(ctx context.Context)(uint, bool){
 	val:= ctx.Value(ContextKeyUserID)
 	if idStr, ok := val.(string); ok{
 		if id, err := strconv.ParseUint(idStr, 10,64); err == nil{
-			return uint(id), true
+			if id <= uint64(math.MaxUint) {
+				return uint(id), true
+			}
 		}
 	}
 	return 0, false
