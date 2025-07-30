@@ -7,97 +7,221 @@ import (
 	"net/http"
 
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
+	"github.com/codetheuri/todolist/pkg/pagination"
 	"github.com/codetheuri/todolist/pkg/validators"
 )
 
-func DataResponse(w http.ResponseWriter, data interface{}) map[string]interface{} {
-	if data == nil {
-		return nil
-	}
-
-	// if data is a map, return it directly
-	// if m, ok := data.(map[string]interface{}); ok {
-	// 	return m
-	// }
-
-	// otherwise, wrap it in a map with "data" key
-	return map[string]interface{}{"datapayload": data}
-}
-func ErrorResponse(w http.ResponseWriter, status int, data interface{}) map[string]interface{} {
-	if data == nil {
-		return nil
-	}
-	return map[string]interface{}{"errorpayload": data}
-}
-func RespondJSON(w http.ResponseWriter, status int, data interface{}) {
+// SendJSON writes the given status code and data as JSON to the http.ResponseWriter.
+func SendJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	// Ensure the data is wrapped in a map
-   finalPayload := DataResponse(w, data)
-   
-	//  datapayload := (map[string]interface{}{"datapayload":response})
-
-
-	if err := json.NewEncoder(w).Encode(finalPayload); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+	w.WriteHeader(statusCode)
+	if data != nil {
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+		}
 	}
-	//  data = DataResponse(w, data)
-	// return DataResponse(w,data) // Ensure the response is wrapped in a map
-	// return  map[string]interface{}{"datapayload": response} // Ensure the response is wrapped in a map
 }
-
-func RespondError(w http.ResponseWriter, err error, defaultStatus int) {
-	errorResponse := struct {
-		Code    string      `json:"code"`
-		Message string      `json:"message"`
-		Errors  interface{} `json:"errors,omitempty"`
-	}{
-		Code:    "INTERNAL_SERVER_ERROR",
-		Message: "An unexpected error occurred",
+func RespondError(w http.ResponseWriter, err error, defaultStatus int, opts ...AlertifyOption) {
+	apiErrResp := APIErrorResponse{
+		ErrorPayload: &ErrorPayload{
+			Code:    "INTERNAL_SERVER_ERROR",
+			Message: "An unexpected error occurred",
+		},
 	}
 	statusCode := defaultStatus
-
-	// cast custom AppError
 	var appErr appErrors.AppError
-
 	if errors.As(err, &appErr) {
-		errorResponse.Code = appErr.Code()
-		errorResponse.Message = appErr.Message()
+		apiErrResp.ErrorPayload.Code = appErr.Code()
+		apiErrResp.ErrorPayload.Message = appErr.Message()
+		// apiErrResp.ErrorPayload.Details = appErr.Details()
 
-		// if it's a validation error, extract the field errors
-		if appErr.Code() == "VALIDATION_ERROR" {
+		//determone status code based on error code
+		isValidationError := false
+		switch appErr.Code() {
+		case "AUTH_ERROR":
+			statusCode = http.StatusUnauthorized
+		case "NOT_FOUND":
+			statusCode = http.StatusNotFound
+		case "INVALID_INPUT":
+			statusCode = http.StatusBadRequest
+		case "FORBIDDEN":
+			statusCode = http.StatusForbidden
+		case "CONFLICT_ERROR":
+			statusCode = http.StatusConflict
+		case "CONFIG_ERROR", "DATABASE_ERROR":
+			statusCode = http.StatusInternalServerError
+		case "UNAUTHORIZED":
+			statusCode = http.StatusUnauthorized
+		case "VALIDATION_ERROR":
+			isValidationError = true
+
 			statusCode = http.StatusUnprocessableEntity
 			if valErrors := appErr.GetValidationErrors(); valErrors != nil {
 				if fieldErrors, ok := valErrors.([]validators.FieldError); ok {
-					errorResponse.Errors = fieldErrors
+					apiErrResp.ErrorPayload.Errors = fieldErrors
+				} else {
+					apiErrResp.ErrorPayload.Errors = valErrors
 				}
 			}
 
-		} else {
-			// map specific error codes to HTTP status codes
-			switch appErr.Code() {
-			case "NOT_FOUND":
-				statusCode = http.StatusNotFound
-			case "INVALID_INPUT":
-				statusCode = http.StatusBadRequest
-			case "UNAUTHORIZED":
-				statusCode = http.StatusUnauthorized
-			case "FORBIDDEN":
-				statusCode = http.StatusForbidden
-			case "CONFLICT_ERROR":
-				statusCode = http.StatusConflict
-			case "CONFIG_ERROR", "DATABASE_ERROR":
-				statusCode = http.StatusInternalServerError
-			case "VALIDATION_ERROR":
-				statusCode = http.StatusUnprocessableEntity
-			default:
-				statusCode = http.StatusInternalServerError
+		case "INTERNAL_SERVER_ERROR":
+			statusCode = http.StatusInternalServerError
+		default:
+			statusCode = http.StatusInternalServerError
+			apiErrResp.ErrorPayload.Message = fmt.Sprintf("An unexpected application error occurred: %s", appErr.Message())
+		}
+		if !isValidationError {
+			apiErrResp.AlertifyPayload = &AlertifyPayload{
+				Message: appErr.Message(),
+				Theme:   "danger",
+				Type:    "alert",
 			}
 		}
 	} else {
-		errorResponse.Message = "An unexpected error occurred"
+		statusCode = http.StatusInternalServerError
+		apiErrResp.ErrorPayload.Message = "An unexpected server error occurred."
+		apiErrResp.AlertifyPayload = &AlertifyPayload{
+			Message: "An unexpected server error occurred.",
+			Theme:   "danger",
+			Type:    "alert",
+		}
 	}
-	// response :=   ErrorResponse(w, statusCode,errorResponse)
+	for _, opt := range opts {
+		opt(&apiErrResp)
+	}
+	SendJSON(w, statusCode, apiErrResp)
+}
 
-	RespondJSON(w, statusCode, ErrorResponse(w, statusCode, errorResponse))
+func RespondData(w http.ResponseWriter, statusCode int, data interface{}, message string, opts ...SuccessOption) {
+	resp := SuccessResponse{
+		Datapayload: &Datapayload{
+			Data: data,
+		},
+	}
+	if message != "" {
+		resp.AlertifyPayload = &AlertifyPayload{
+			Message: message,
+			Theme:   "success",
+			Type:    "alert",
+		}
+	}
+	for _, opt := range opts {
+		opt(&resp)
+	SendJSON(w, statusCode, resp)
+	}
+}
+func RespondListData(w http.ResponseWriter, statusCode int, data interface{}, p *pagination.Pagination, message string) {
+	resp := SuccessResponse{
+		ListDatapayload: &ListDatapayload{
+			Data:       data,
+			Pagination: p,
+		},
+	}
+	if message != "" {
+		resp.AlertifyPayload = &AlertifyPayload{
+			Message: message,
+			Theme:   "success",
+			Type:    "alert",
+		}
+	}
+	SendJSON(w, statusCode, resp)
+}
+func RespondMessage(w http.ResponseWriter, statusCode int, message string, theme string, typ interface{}) {
+	resp := SuccessResponse{
+		AlertifyPayload: &AlertifyPayload{
+			Message: message,
+			Theme:   theme,
+			Type:    typ,
+		},
+	}
+	SendJSON(w, statusCode, resp)
+}
+
+// ---success response options
+type SuccessOption func(*SuccessResponse)
+
+func WithSuccessTheme(theme string) SuccessOption {
+	return func(resp *SuccessResponse) {
+		if resp.AlertifyPayload == nil {
+			resp.AlertifyPayload = &AlertifyPayload{}
+		}
+		resp.AlertifyPayload.Theme = theme
+	}
+}	
+func WithSuccessType(typ interface{}) SuccessOption {
+	return func(resp *SuccessResponse) {
+		if resp.AlertifyPayload == nil {
+			resp.AlertifyPayload = &AlertifyPayload{}
+		}
+		resp.AlertifyPayload.Type = typ
+	}
+}
+func WithSuccessMessage(message string) SuccessOption {
+	return func(resp *SuccessResponse) {
+		if resp.AlertifyPayload == nil {
+			resp.AlertifyPayload = &AlertifyPayload{}
+		}
+		resp.AlertifyPayload.Message = message
+	}
+}
+func WithSuccessOverride(message string, theme string, typ interface{}) SuccessOption {
+	return func(resp *SuccessResponse) {
+		resp.AlertifyPayload = &AlertifyPayload{
+			Message: message,
+			Theme:   theme,
+			Type:    typ,
+		}
+	}
+}
+func WithoutSuccess() SuccessOption {
+	return func(resp *SuccessResponse) {
+		resp.AlertifyPayload = nil
+	}
+}
+ func WithMetadata(data interface{}) SuccessOption {
+	return func(resp *SuccessResponse) {
+		resp.Metadata = data
+	}
+ }
+
+// for error options
+type AlertifyOption func(*APIErrorResponse)
+
+func WithAlertifyTheme(theme string) AlertifyOption {
+	return func(resp *APIErrorResponse) {
+		if resp.AlertifyPayload == nil {
+			resp.AlertifyPayload = &AlertifyPayload{}
+		}
+		resp.AlertifyPayload.Theme = theme
+	}
+}
+func WithAlertifyType(typ interface{}) AlertifyOption {
+	return func(resp *APIErrorResponse) {
+		if resp.AlertifyPayload == nil {
+			resp.AlertifyPayload = &AlertifyPayload{}
+		}
+		resp.AlertifyPayload.Type = typ
+	}
+}
+func WithAlertifyMessage(message string) AlertifyOption {
+	return func(resp *APIErrorResponse) {
+		if resp.AlertifyPayload == nil {
+			resp.AlertifyPayload = &AlertifyPayload{}
+		}
+		resp.AlertifyPayload.Message = message
+	}
+}
+func WithAlertifyOverride(message string, theme string, typ string) AlertifyOption {
+	return func(resp *APIErrorResponse) {
+		resp.AlertifyPayload = &AlertifyPayload{
+			Message: message,
+			Theme:   theme,
+			Type:    typ,
+		}
+	}
+}
+
+func WithoutAlertify() AlertifyOption {
+	return func(resp *APIErrorResponse) {
+		resp.AlertifyPayload = nil
+	}
 }

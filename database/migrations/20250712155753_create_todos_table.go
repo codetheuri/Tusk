@@ -3,7 +3,7 @@ package migrations
 import (
 	"log"
 
-	"github.com/codetheuri/todolist/internal/app/modules/todo/models"
+	"github.com/codetheuri/todolist/internal/app/todo/models"
 	"gorm.io/gorm"
 )
 

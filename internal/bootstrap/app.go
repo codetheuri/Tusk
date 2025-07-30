@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/codetheuri/todolist/config"
-	"github.com/codetheuri/todolist/internal/app/modules"
+	modules "github.com/codetheuri/todolist/internal/app"
 
-	todoModule "github.com/codetheuri/todolist/internal/app/modules/todo"
-	authModule  "github.com/codetheuri/todolist/internal/app/modules/auth"
+	todoModule "github.com/codetheuri/todolist/internal/app/todo"
+	authModule  "github.com/codetheuri/todolist/internal/app/auth"
 	router "github.com/codetheuri/todolist/internal/app/routers"
 	"github.com/codetheuri/todolist/internal/platform/database"
 	"github.com/codetheuri/todolist/pkg/logger"

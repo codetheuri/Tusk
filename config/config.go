@@ -28,7 +28,7 @@ type Config struct {
 	ServerPort        int
 	LOG_LEVEL         string
 	JWTSecret         string
-	AccessTokenTTL    time.Duration `mapstructure:"ACCESS_TOKEN_TTL"`
+	AccessTokenTTL    time.Duration 
 	AppName           string
 	AppVersion        string
 	AppMode           string
@@ -61,6 +61,22 @@ func LoadConfig() (*Config, error) {
 		DBConnMaxLifetime: 60, // default value in seconds
 
 	}
+	JWTSecret :=   os.Getenv("JWT_SECRET")
+	if JWTSecret == "" {
+		return nil, errors.ConfigError("JWT_SECRET not set in .env", nil)
+	}
+	 accessTokenTTLStr := os.Getenv("ACCESS_TOKEN_TTL")
+    if accessTokenTTLStr == "" {
+        
+        accessTokenTTLStr = "24h" 
+    }
+    // Parse the duration string (e.g., "3600s", "1h", "24h")
+    parsedTTL, err := time.ParseDuration(accessTokenTTLStr)
+    if err != nil {
+        return nil, errors.ConfigError(fmt.Sprintf("Invalid ACCESS_TOKEN_TTL value: %s, error: %v", accessTokenTTLStr, err), err)
+    }
+    cfg.AccessTokenTTL = parsedTTL
+
 	if cfg.DBDriver == "" {
 		return nil, errors.ConfigError("DB_DRIVER not set in .env", nil)
 	}

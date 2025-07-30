@@ -4,85 +4,73 @@ import (
 	"errors"
 	"fmt"
 	"time"
-appErrors "github.com/codetheuri/todolist/pkg/errors"
-	"github.com/codetheuri/todolist/internal/app/modules/auth/models"
-	"github.com/codetheuri/todolist/internal/app/modules/auth/repositories"
+	"context"
+
+	"github.com/codetheuri/todolist/internal/app/auth/models"
+	"github.com/codetheuri/todolist/internal/app/auth/repositories"
+	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+	   tokenPkg "github.com/codetheuri/todolist/pkg/auth/token"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"golang.org/x/net/context"
+
+
 )
 
-type Claims struct {
-	UserID uint   `json:"user_id"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
-	jwt.RegisteredClaims
+type jwtService struct {
+    revokedTokenRepo repositories.RevokedTokenRepository
+	log   		logger.Logger
+	jwtSecret []byte
+	tokenTTL  time.Duration
 }
 
-type TokenService interface {
-	GenerateAuthTokens(ctx context.Context, user *models.User) (string, error)
-	ValidateToken(ctx context.Context, tokenString string) (*Claims, error)
-	RevokeToken(ctx context.Context, jti string, expiresAt time.Time) error
-	IsTokenBlacklisted(ctx context.Context, jti string) (bool, error)
-	CleanExpiredRevokedTokens(ctx context.Context) error
-	GetTokenTTL() time.Time 
-}
 
-type tokenService struct {
-	revokedTokenRepo repositories.RevokedTokenRepository
-	log              logger.Logger
-	jwtSecret        []byte
-	tokenTTL         time.Duration
-}
+
 
 // constructor for the TokenService.
-func NewTokenService(revokedTokenRepo repositories.RevokedTokenRepository, jwtSecret string, tokenTTL time.Duration, log logger.Logger) TokenService {
-	return &tokenService{
+func NewJWTService(revokedTokenRepo repositories.RevokedTokenRepository, jwtSecret string, tokenTTL time.Duration, log logger.Logger) tokenPkg.TokenService {
+	return &jwtService{
 		revokedTokenRepo: revokedTokenRepo,
 		jwtSecret:        []byte(jwtSecret),
 		tokenTTL:         tokenTTL,
 		log:              log,
 	}
 }
-func (s *tokenService) GenerateAuthTokens(ctx context.Context, user *models.User) (string, error) {
-	s.log.Info("Generating JWT for user", "userID", user.ID, "email", user.Email)
+func (s *jwtService) GenerateToken(userID string, role string) (string, error) {
+	s.log.Info("Generating JWT for user", "userID", userID)
 
 	now := time.Now()
 	expiresAt := now.Add(s.tokenTTL)
-	jti := uuid.New().String() 
+	jti := uuid.New().String()
 
-	claims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
+	claims := &tokenPkg.Claims{
+		UserID: userID,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "tusk-api", 
-			Subject:   fmt.Sprintf("%d", user.ID),
-			ID:        jti, 
+			Issuer:    "tusk-api",
+			Subject:   userID,
+			ID:        jti,
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(s.jwtSecret)
 	if err != nil {
-		s.log.Error("Failed to sign JWT tokn", err, "userID", user.ID)
+		s.log.Error("Failed to sign JWT tokn", err, "userID", userID)
 		return "", appErrors.InternalServerError("Failed to generate token", err)
 	}
 
-	s.log.Info("JWT generated successfully", "userID", user.ID, "jti", jti)
+	s.log.Info("JWT generated successfully", "userID", userID, "jti", jti)
 	return tokenString, nil
 }
-func (s *tokenService) GetTokenTTL() time.Time {
-    return time.Now().Add(s.tokenTTL)
-}
-func (s *tokenService) ValidateToken(ctx context.Context, tokenString string) (*Claims, error) {
+
+func (s *jwtService) ValidateToken(ctx context.Context, tokenString string) (*tokenPkg.Claims, error) {
 	s.log.Debug("Validating JWT token")
 
-	claims := &Claims{}
+	claims := &tokenPkg.Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		// Verify the signing method is what you expect
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -93,16 +81,15 @@ func (s *tokenService) ValidateToken(ctx context.Context, tokenString string) (*
 
 	if err != nil {
 		s.log.Warn("Failed to parse or validate token", err)
-		if errors.Is(err,jwt.ErrTokenExpired) {
+		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, appErrors.AuthError("token expired", err)
 		}
 		if errors.Is(err, jwt.ErrSignatureInvalid) {
 			return nil, appErrors.AuthError("invalid token signature", err)
 		}
-   
-	
-	return  nil, appErrors.InternalServerError("failed to parse token", err)
-}
+
+		return nil, appErrors.InternalServerError("failed to parse token", err)
+	}
 
 	if !token.Valid {
 		s.log.Warn("Invalid token received")
@@ -124,7 +111,7 @@ func (s *tokenService) ValidateToken(ctx context.Context, tokenString string) (*
 	return claims, nil
 }
 
-func (s *tokenService) RevokeToken(ctx context.Context, jti string, expiresAt time.Time) error {
+func (s *jwtService) RevokeToken(ctx context.Context, jti string, expiresAt time.Time) error {
 	s.log.Info("Revoking token", "jti", jti)
 
 	revokedToken := &models.RevokedToken{
@@ -140,17 +127,17 @@ func (s *tokenService) RevokeToken(ctx context.Context, jti string, expiresAt ti
 	return nil
 }
 
-func (s *tokenService) IsTokenBlacklisted(ctx context.Context, jti string) (bool, error) {
+func (s *jwtService) IsTokenBlacklisted(ctx context.Context, jti string) (bool, error) {
 	s.log.Debug("Checking if token JTI is blacklisted directly", "jti", jti)
-	   isRevoked, err := s.revokedTokenRepo.IsTokenRevoked(ctx, jti)
-    if err != nil {
-        s.log.Error("Failed to check if token is blacklisted via repo", err, "jti", jti)
-        return false, appErrors.DatabaseError("failed to check token blacklist status", err) // <--- Use appErrors
-    }
-    return isRevoked, nil
+	isRevoked, err := s.revokedTokenRepo.IsTokenRevoked(ctx, jti)
+	if err != nil {
+		s.log.Error("Failed to check if token is blacklisted via repo", err, "jti", jti)
+		return false, appErrors.DatabaseError("failed to check token blacklist status", err) // <--- Use appErrors
+	}
+	return isRevoked, nil
 }
 
-func (s *tokenService) CleanExpiredRevokedTokens(ctx context.Context) error {
+func (s *jwtService) CleanExpiredRevokedTokens(ctx context.Context) error {
 	s.log.Info("Initiating cleanup of expired revoked tokens")
 	if err := s.revokedTokenRepo.DeleteExpiredRevokedTokens(ctx, time.Now()); err != nil {
 		s.log.Error("Failed to clean up expired revoked tokens", err)
@@ -158,4 +145,7 @@ func (s *tokenService) CleanExpiredRevokedTokens(ctx context.Context) error {
 	}
 	s.log.Info("Expired revoked tokens cleanup completed")
 	return nil
+}
+func (s *jwtService) GetTokenTTL() time.Time {
+	return time.Now().Add(s.tokenTTL) // Return the expiration time based on the token TTL
 }

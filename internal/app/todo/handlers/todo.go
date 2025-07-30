@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/codetheuri/todolist/internal/app/modules/todo/services"
+	"github.com/codetheuri/todolist/internal/app/todo/services"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/pagination"
@@ -47,7 +47,8 @@ func (h *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusCreated, res)
+	
+	web.RespondData(w,http.StatusCreated,res, "todo created succssfully")
 	h.log.Info("Handler: Todo request handled successfully", "todoID", res.ID)
 }
 
@@ -80,7 +81,8 @@ func (h *TodoHandler) GetTodoByID(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusOK, res)
+	
+	web.RespondData(w,http.StatusOK, res, "")
 	h.log.Info("Handler: Todo retrieved successfully", "todoID", res.ID)
 }
 
@@ -104,7 +106,8 @@ func (h *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusOK, p)
+	// web.RespondJSON(w, http.StatusOK, p)
+	web.RespondListData(w,http.StatusOK,p,nil, "")
 	h.log.Info("Handler: Todos retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
 
 }
@@ -128,7 +131,8 @@ func (h *TodoHandler) GetAllIncludingDeleted(w http.ResponseWriter, r *http.Requ
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusOK, p)
+	// web.RespondJSON(w, http.StatusOK, p)
+	web.RespondListData(w,http.StatusOK,p,nil, "")
 	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
 }
 func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +161,8 @@ func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusOK, res)
+	
+	web.RespondData(w,http.StatusOK, res, "Todo updated successfully")
 	h.log.Info("Handler: Todo updated successfully", "todoID", res.ID)
 }
 
@@ -180,7 +185,8 @@ func (h *TodoHandler) SoftDeleteTodo(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusNoContent, nil)
+	
+	web.RespondMessage(w, http.StatusNoContent,"Todo deleted successfully", "success", "alert")
 	h.log.Info("Handler: Todo deleted successfully", "todoID", id)
 }
 func (h *TodoHandler) RestoreTodo(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +206,8 @@ func (h *TodoHandler) RestoreTodo(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusNoContent, nil)
+	
+	web.RespondMessage(w,http.StatusNoContent, "Todo restored successfully", "success", "alert")
 	h.log.Info("Handler: Todo restored successfully", "todoID", id)
 }
 func (h *TodoHandler) HardDeleteTodo(w http.ResponseWriter, r *http.Request) {
@@ -220,6 +227,7 @@ func (h *TodoHandler) HardDeleteTodo(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
-	web.RespondJSON(w, http.StatusNoContent, nil)
+	
+	web.RespondMessage(w,http.StatusNoContent,"Todo hard deleted successfully", "danger", "alert")
 	h.log.Info("Handler: Todo hard deleted successfully", "todoID", id)
 }

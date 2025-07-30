@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/codetheuri/todolist/internal/app/modules/auth/handlers/dto"
-	"github.com/codetheuri/todolist/internal/app/modules/auth/services"
+	"github.com/codetheuri/todolist/internal/app/auth/handlers/dto"
+	"github.com/codetheuri/todolist/internal/app/auth/services"
+	tokenPkg "github.com/codetheuri/todolist/pkg/auth/token"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/web"
@@ -65,27 +65,11 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authServices.UserService.RegisterUser(ctx, req.Email, req.Password, req.Role)
 	if err != nil {
 		h.log.Error("Handler: Failed to register user through service", err, "email", req.Email)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "AUTH_ERROR":
-				web.RespondError(w, appErr, http.StatusConflict)
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "INTERNAL_SERVER_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "VALIDATION_ERROR":
-				web.RespondError(w, appErr, http.StatusBadRequest)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred during registration", err), http.StatusInternalServerError)
-			}
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred during registration", err), http.StatusInternalServerError)
-		}
+		h.handleAppError(w, err, "user registration")
 		return
 	}
 
-	tokenString, err := h.authServices.TokenService.GenerateAuthTokens(ctx, user)
+	tokenString, err := h.authServices.TokenService.GenerateToken(fmt.Sprintf("%d", user.ID), user.Role)
 	if err != nil {
 		h.log.Error("Handler: Failed to generate auth token after registration", err, "userID", user.ID)
 		web.RespondError(w, appErrors.InternalServerError("failed to generate authentication token", err), http.StatusInternalServerError)
@@ -97,11 +81,13 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Role:   user.Role,
 		Token:  tokenString,
 
-		ExpiresAt: h.authServices.TokenService.GetTokenTTL().Unix(),
+		ExpiresAt: h.authServices.TokenService.GetTokenTTL().Unix(), // Access token TTL from TokenService
 	}
 
 	h.log.Info("Handler: User registered and token generated", "userID", user.ID)
-	web.RespondJSON(w, http.StatusCreated, resp)
+
+	web.RespondData(w, http.StatusCreated, resp, "User registered successfully", web.WithSuccessType("toast"))
+
 }
 
 func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -127,31 +113,35 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authServices.UserService.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		h.log.Error("Handler: Failed to get user by email during login", err, "email", req.Email)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "NOT_FOUND":
-				web.RespondError(w, appErrors.AuthError("invalid credentials", nil), http.StatusUnauthorized)
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred during login", err), http.StatusInternalServerError)
-			}
+
+		var authErr appErrors.AppError
+		if errors.As(err, &authErr) && authErr.Code() == "AUTH_ERROR" {
+			web.RespondError(w, authErr, http.StatusUnauthorized,
+				web.WithAlertifyType("toast"),
+				web.WithAlertifyTheme("danger"),
+				web.WithAlertifyMessage("Invalid email or password"),
+			)
 		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred during login", err), http.StatusInternalServerError)
+			h.handleAppError(w, err, "user login")
 		}
 		return
 	}
 
 	// 2. Compare passwords
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		h.log.Warn("Handler: Invalid password attempt for user", "email", req.Email)
-		web.RespondError(w, appErrors.AuthError("invalid credentials", nil), http.StatusUnauthorized)
+		h.log.Warn("Handler: Invalid password attempt for user", "email", req.Email, "error", err)
+		// web.RespondError(w, appErrors.AuthError("invalid credentials", nil), http.StatusUnauthorized)
+		web.RespondError(w, appErrors.AuthError("Invalid credentials", nil), http.StatusUnauthorized,
+			web.WithAlertifyType("toast"),
+			web.WithAlertifyTheme("danger"),
+			web.WithAlertifyMessage("Invalid email or password"),
+		)
+
 		return
 	}
 
 	// 3. Generate Auth Token
-	tokenString, err := h.authServices.TokenService.GenerateAuthTokens(ctx, user)
+	tokenString, err := h.authServices.TokenService.GenerateToken(fmt.Sprintf("%d", user.ID), user.Role)
 	if err != nil {
 		h.log.Error("Handler: Failed to generate auth token after successful login", err, "userID", user.ID)
 		web.RespondError(w, appErrors.InternalServerError("failed to generate authentication token", err), http.StatusInternalServerError)
@@ -167,7 +157,16 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.log.Info("Handler: User logged in successfully", "userID", user.ID)
-	web.RespondJSON(w, http.StatusOK, resp)
+	// extraSlice := map[string]string{"message":"access granted", "theme":"primary", "type":"toast"}
+
+	web.RespondData(w, http.StatusOK, resp, "access granted",
+		// web.WithMetadata(extraSlice),
+		web.WithSuccessType("toast"),
+
+		// web.WithSuccessMessage("Login successful"),
+		// web.WithSuccessTheme("primary"),
+	)
+
 }
 
 func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
@@ -185,19 +184,7 @@ func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authServices.UserService.GetUserByID(ctx, uint(userID))
 	if err != nil {
 		h.log.Error("Handler: Failed to get user profile through service", err, "userID", userID)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "NOT_FOUND":
-				web.RespondError(w, appErr, http.StatusNotFound)
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred", err), http.StatusInternalServerError)
-			}
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
-		}
+		h.handleAppError(w, err, "get user profile")
 		return
 	}
 
@@ -208,14 +195,20 @@ func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.log.Info("Handler: User profile retrieved successfully", "userID", user.ID)
-	web.RespondJSON(w, http.StatusOK, resp)
+
+	web.RespondData(w, http.StatusOK, resp, "User profile retrieved successfully", web.WithoutSuccess())
 }
 
 func (h *authHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received ChangePassword request")
-
-	// User ID should come from authenticated context, not URL/body for security.
-	userIDStr := chi.URLParam(r, "id") // Assuming /auth/users/{id}/change-password
+	ctxUserID, ok := tokenPkg.GetUserIDFromContext(r.Context())
+	if !ok {
+		h.log.Warn("Handler: UserID not found in context for ChangePassword (middleware error or missing)")
+		web.RespondError(w, appErrors.AuthError("authentication context missing", nil), http.StatusUnauthorized)
+		return
+	}
+	//for admins
+	userIDStr := chi.URLParam(r, "id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
 		h.log.Warn("Handler: Invalid user ID format in URL for change password", err, "id", userIDStr)
@@ -238,33 +231,16 @@ func (h *authHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	err = h.authServices.UserService.ChangePassword(ctx, uint(userID), req.OldPassword, req.NewPassword)
+	err = h.authServices.UserService.ChangePassword(ctx, ctxUserID, req.OldPassword, req.NewPassword)
 	if err != nil {
 		h.log.Error("Handler: Failed to change password through service", err, "userID", userID)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "NOT_FOUND":
-				web.RespondError(w, appErr, http.StatusNotFound)
-			case "AUTH_ERROR":
-				web.RespondError(w, appErr, http.StatusUnauthorized)
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "INTERNAL_SERVER_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "VALIDATION_ERROR":
-				web.RespondError(w, appErr, http.StatusBadRequest)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred", err), http.StatusInternalServerError)
-			}
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
-		}
+		h.handleAppError(w, err, "change password")
 		return
 	}
 
 	h.log.Info("Handler: Password changed successfully", "userID", userID)
-	web.RespondJSON(w, http.StatusOK, dto.SuccessResponse{Message: "Password changed successfully"})
+	// web.RespondJSON(w, http.StatusOK, dto.SuccessResponse{Message: "Password changed successfully"})
+	web.RespondMessage(w, http.StatusOK, "Password changed successfully", "success", "alert")
 }
 
 func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -282,26 +258,13 @@ func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	err = h.authServices.UserService.DeleteUser(ctx, uint(userID))
 	if err != nil {
 		h.log.Error("Handler: Failed to delete user through service", err, "userID", userID)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "NOT_FOUND":
-				web.RespondError(w, appErr, http.StatusNotFound)
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "INTERNAL_SERVER_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred during user deletion", err), http.StatusInternalServerError)
-			}
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred during user deletion", err), http.StatusInternalServerError)
-		}
-		return
+		h.handleAppError(w, err, "delete user")
 	}
 
 	h.log.Info("Handler: User soft-deleted successfully", "userID", userID)
-	web.RespondJSON(w, http.StatusNoContent, dto.SuccessResponse{Message: "user deleted successfully"}) // 204 No Content for successful deletion
+	web.RespondMessage(w, http.StatusNoContent, "User soft-deleted successfully", "success", "toast")
+	// web.RespondJSON(w, http.StatusNoContent, dto.SuccessResponse{Message: "user deleted successfully"}) // 204 No Content for successful deletion
+
 }
 
 func (h *authHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
@@ -319,85 +282,61 @@ func (h *authHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 	err = h.authServices.UserService.RestoreUser(ctx, uint(userID))
 	if err != nil {
 		h.log.Error("Handler: Failed to restore user through service", err, "userID", userID)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "NOT_FOUND":
-				web.RespondError(w, appErr, http.StatusNotFound)
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "INTERNAL_SERVER_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred during user restore", err), http.StatusInternalServerError)
-			}
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred during user restore", err), http.StatusInternalServerError)
-		}
+		h.handleAppError(w, err, "restore user")
 		return
 	}
 
 	h.log.Info("Handler: User restored successfully", "userID", userID)
-	web.RespondJSON(w, http.StatusOK, dto.SuccessResponse{Message: "User restored successfully"})
+	web.RespondMessage(w, http.StatusOK, "User restored successfully", "success", "toast")
+	
 }
-
 
 func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received Logout request")
 
-	// In a real application, middleware would extract the JWT token (JTI and ExpiresAt)
-	// from the Authorization header and put it into the request context.
-	// For now, this is a placeholder using context values, assuming middleware is coming.
-	jti := r.Context().Value("jti")
-	expiresAt := r.Context().Value("exp")
+	jti, jtiOK := tokenPkg.GetJTIFromContext(r.Context())
+	expiresAt, expOK := tokenPkg.GetExpiresAtFromContext(r.Context())
 
-	if jti == nil || expiresAt == nil {
-		h.log.Warn("Handler: Logout request missing JTI or ExpiresAt in context (middleware not providing)")
-		web.RespondError(w, appErrors.AuthError("invalid token for logout or token data missing", nil), http.StatusUnauthorized)
+	if !jtiOK || !expOK {
+		h.log.Warn("Handler: Logout request missing JTI or ExpiresAt in context. Ensure Authenticator middleware is active and correctly extracts these.")
+		web.RespondError(w, appErrors.AuthError("authentication context missing for logout", nil), http.StatusUnauthorized)
 		return
 	}
-
-	// Type assertion for context values
-	jtiStr, ok := jti.(string)
-	if !ok {
-		h.log.Error("Handler: JTI in context is not a string, type assertion failed", nil, "jti_type", fmt.Sprintf("%T", jti))
-		web.RespondError(w, appErrors.InternalServerError("internal error processing JTI", nil), http.StatusInternalServerError)
-		return
-	}
-
-	expiresAtTime, ok := expiresAt.(time.Time)
-	if !ok {
-		h.log.Error("Handler: ExpiresAt in context is not time.Time, type assertion failed", nil, "exp_type", fmt.Sprintf("%T", expiresAt))
-		// Attempt to convert from int64 if it's stored as Unix timestamp
-		expInt64, isInt := expiresAt.(int64)
-		if isInt {
-			expiresAtTime = time.Unix(expInt64, 0)
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("internal error processing ExpiresAt", nil), http.StatusInternalServerError)
-			return
-		}
-	}
-
 	ctx := r.Context()
-	err := h.authServices.TokenService.RevokeToken(ctx, jtiStr, expiresAtTime)
+	err := h.authServices.TokenService.RevokeToken(ctx, jti, expiresAt)
 	if err != nil {
-		h.log.Error("Handler: Failed to revoke token through service", err, "jti", jtiStr)
-		var appErr appErrors.AppError
-		if errors.As(err, &appErr) {
-			switch appErr.Code() {
-			case "DATABASE_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			case "INTERNAL_SERVER_ERROR":
-				web.RespondError(w, appErr, http.StatusInternalServerError)
-			default:
-				web.RespondError(w, appErrors.InternalServerError("an unexpected error occurred during logout", err), http.StatusInternalServerError)
-			}
-		} else {
-			web.RespondError(w, appErrors.InternalServerError("an unknown error occurred during logout", err), http.StatusInternalServerError)
-		}
+		h.log.Error("Handler: Failed to revoke token through service", err, "jti", jti)
+		h.handleAppError(w, err, "logout")
 		return
 	}
 
-	h.log.Info("Handler: User logged out successfully (token revoked)", "jti", jtiStr)
-	web.RespondJSON(w, http.StatusOK, dto.SuccessResponse{Message: "Logged out successfully"})
+	h.log.Info("Handler: User logged out successfully (token revoked)", "jti", jti)
+	web.RespondMessage(w, http.StatusOK, "Logged out successfully", "success", "toast")
+	
+}
+func (h *authHandler) handleAppError(w http.ResponseWriter, err error, action string) {
+	var appErr appErrors.AppError
+	if errors.As(err, &appErr) {
+		h.log.Error(fmt.Sprintf("Handler: Application error during %s", action), err, "code", appErr.Code())
+		switch appErr.Code() {
+		case "AUTH_ERROR":
+			web.RespondError(w, appErr, http.StatusUnauthorized) // For invalid credentials, revoked token etc.
+		case "NOT_FOUND":
+			web.RespondError(w, appErr, http.StatusNotFound)
+		case "VALIDATION_ERROR":
+			web.RespondError(w, appErr, http.StatusBadRequest)
+		case "DATABASE_ERROR":
+			web.RespondError(w, appErr, http.StatusInternalServerError)
+		case "INTERNAL_SERVER_ERROR":
+			web.RespondError(w, appErr, http.StatusInternalServerError)
+		default:
+			// Catch-all for unhandled AppError codes
+			web.RespondError(w, appErrors.InternalServerError(
+				fmt.Sprintf("an unexpected application error occurred with code %s", appErr.Code()), appErr), http.StatusInternalServerError)
+		}
+	} else {
+		// Handle unexpected non-AppError errors
+		h.log.Error(fmt.Sprintf("Handler: Unknown error during %s", action), err)
+		web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
+	}
 }

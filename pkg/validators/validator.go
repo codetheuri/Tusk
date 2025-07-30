@@ -2,6 +2,7 @@ package validators
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	gv "github.com/go-playground/validator/v10"
@@ -12,8 +13,16 @@ type Validator struct {
 }
 
 func NewValidator() *Validator {
+	v := gv.New()
+	v.RegisterTagNameFunc(func(fld reflect.StructField) string{
+		name := strings.SplitN(fld.Tag.Get("json"), ",",2)[0]
+		if name == "-" || name == ""{
+			return fld.Name
+		}
+		return name
+	})
 	return &Validator{
-		validate: gv.New(),
+		validate: v,
 	}
 }
 

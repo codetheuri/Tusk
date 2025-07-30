@@ -82,6 +82,11 @@ func ValidationError(message string, err error, fieldErrors interface{}) AppErro
 // authentication issues
 func AuthError(message string, err error) AppError {
 	return New("AUTH_ERROR", message, err)
+	// 	return &appError{
+	// 	code:    "AUTH_ERROR",
+	// 	message: message,
+	// 	err:     err,
+	// }
 }
 
 // authorization issues

@@ -3,8 +3,8 @@ package services
 import (
 	"errors"
 
-	"github.com/codetheuri/todolist/internal/app/modules/auth/models"
-	"github.com/codetheuri/todolist/internal/app/modules/auth/repositories"
+	"github.com/codetheuri/todolist/internal/app/auth/models"
+	"github.com/codetheuri/todolist/internal/app/auth/repositories"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/validators"
@@ -102,16 +102,23 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 	return user, nil
 }
 
-
 func (s *userService) UpdateUser(ctx context.Context, user *models.User) error {
 	s.log.Info("Updating user in service", "id", user.ID, "email", user.Email)
-	// Optional: Add validation for the user struct before updating
+	//  Add validation for the user struct before updating
 	validationErrors := s.validator.Struct(user)
 	if validationErrors != nil {
 		s.log.Warn("Validation failed for user update", "err", validationErrors)
 		return appErrors.ValidationError("validation failed for user update", nil, validationErrors)
 	}
-
+	_, err := s.userRepo.GetUserByID(ctx, user.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.log.Warn("Service: User to update not found", "id", user.ID)
+			return appErrors.NotFoundError("user to update not found", err)
+		}
+		s.log.Error("Service: Failed to retrieve user for update check", err, "id", user.ID)
+		return appErrors.DatabaseError("failed to retrieve user for update", err)
+	}
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		s.log.Error("Failed to update user in database", err, "id", user.ID)
 		return appErrors.DatabaseError("failed to update user", err)
@@ -123,8 +130,13 @@ func (s *userService) ChangePassword(ctx context.Context, userID uint, oldPasswo
 
 	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.log.Warn("Service: User not found for password change", "userID", userID)
+			return appErrors.NotFoundError("user not found", err)
+		}
+		s.log.Error("Service: Failed to retrieve user for password change from repository", err, "userID", userID)
+		return appErrors.DatabaseError("failed to retrieve user for password change", err)
 
-		return err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {

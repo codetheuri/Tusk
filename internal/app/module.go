@@ -1,4 +1,4 @@
-package modules
+package app
 
 import "github.com/go-chi/chi"
 

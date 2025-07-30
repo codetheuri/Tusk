@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codetheuri/todolist/internal/app/modules/todo/models"
-	"github.com/codetheuri/todolist/internal/app/modules/todo/repositories"
+	"github.com/codetheuri/todolist/internal/app/todo/models"
+	"github.com/codetheuri/todolist/internal/app/todo/repositories"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/pagination"
