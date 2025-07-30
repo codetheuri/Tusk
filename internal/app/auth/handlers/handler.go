@@ -19,6 +19,7 @@ import (
 
 	"github.com/codetheuri/todolist/pkg/validators"
 	//"github.com/codetheuri/todolist/internal/app/modules/auth/models"
+	"math"
 )
 
 type AuthHandler interface {
@@ -177,6 +178,12 @@ func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Warn("Handler: Invalid user ID format in URL", err, "id", userIDStr)
 		web.RespondError(w, appErrors.ValidationError("invalid user ID format", nil, nil), http.StatusBadRequest)
+		return
+	}
+	// Bounds check: ensure userID fits in uint
+	if userID > uint64(math.MaxUint) {
+		h.log.Warn("Handler: User ID out of range for uint", "id", userIDStr)
+		web.RespondError(w, appErrors.ValidationError("user ID out of range", nil, nil), http.StatusBadRequest)
 		return
 	}
 
