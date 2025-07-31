@@ -38,14 +38,18 @@ func (r *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	r.log.Info("GetUserByEmail repository")
 	var user models.User
-	 err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
-	return &user, err
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+		r.log.Error("Failed to get user by email", err)
+		return nil, err
+	}
+	return &user, nil
+
 }
 
 func (r *userRepository) GetUserByID(ctx context.Context, id uint) (*models.User, error) {
 	r.log.Info("GetUserByID repository")
 	var user models.User
-	 err := r.db.WithContext(ctx).First(&user, id).Error
+	err := r.db.WithContext(ctx).First(&user, id).Error
 	return &user, err
 }
 func (r *userRepository) UpdateUser(ctx context.Context, user *models.User) error {

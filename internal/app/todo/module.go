@@ -40,6 +40,7 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 	r.Route("/todos", func(r chi.Router) {
 		r.Use(middleware.Authenticator(m.TokenService, m.log)) // Apply authentication middleware
 		r.Post("/", m.Handlers.CreateTodo)
+		r.Get("/all", m.Handlers.GetAllIncludingDeleted)
 		r.Get("/{id}", m.Handlers.GetTodoByID)
 		r.Get("/", m.Handlers.GetAllTodos)
 		r.Put("/{id}", m.Handlers.UpdateTodo)

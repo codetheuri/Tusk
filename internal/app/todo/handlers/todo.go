@@ -48,6 +48,7 @@ func (h *TodoHandler) CreateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	
 	web.RespondData(w,http.StatusCreated,res, "todo created succssfully")
 	h.log.Info("Handler: Todo request handled successfully", "todoID", res.ID)
 }
@@ -92,23 +93,23 @@ func (h *TodoHandler) GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	if err != nil {
 		page = pagination.DefaultPage
 	}
 	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <1 || limit > pagination.MaxLimit{
+	if err != nil{
 		limit = pagination.DefaultLimit
 	}
-
-	p, err := h.todoService.GetAllTodos(page,limit)
+    ctx := r.Context()
+	p, err := h.todoService.GetAllTodos(ctx,page,limit)
 	if err != nil {
 		h.log.Error("Handler: Service call failed for GetAllTodos", err)
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
 	// web.RespondJSON(w, http.StatusOK, p)
-	web.RespondListData(w,http.StatusOK,p,nil, "")
-	h.log.Info("Handler: Todos retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
+	web.RespondListData(w,http.StatusOK,p.Data,p.Metadata)
+	h.log.Info("Handler: Todos retrieved successfully", "page", p.Metadata.Page, "limit", p.Metadata.Limit, "total_items", p.Metadata.TotalItems)
 
 }
 
@@ -117,23 +118,23 @@ func (h *TodoHandler) GetAllIncludingDeleted(w http.ResponseWriter, r *http.Requ
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	if err != nil {
 		page = pagination.DefaultPage
 	}
 	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > pagination.MaxLimit {
+	if err != nil{
 		limit = pagination.DefaultLimit
 	}
-
-	p, err := h.todoService.GetAllIncludingDeleted(page, limit)
+    ctx := r.Context()
+	p, err := h.todoService.GetAllIncludingDeleted(ctx,page, limit)
 	if err != nil {
 		h.log.Error("Handler: Service call failed for GetAllIncludingDeleted", err)
 		web.RespondError(w, err, http.StatusInternalServerError)
 		return
 	}
 	// web.RespondJSON(w, http.StatusOK, p)
-	web.RespondListData(w,http.StatusOK,p,nil, "")
-	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Page, "limit", p.Limit, "total_rows", p.TotalRows)
+	web.RespondListData(w,http.StatusOK,p.Data,p.Metadata)
+	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Metadata.Page, "limit", p.Metadata.Limit, "total_item", p.Metadata.TotalItems)
 }
 func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received UpdateTodo request")
@@ -170,7 +171,7 @@ func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 func (h *TodoHandler) SoftDeleteTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: received DeleteTodo request")
 
-	// idStr := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -186,7 +187,8 @@ func (h *TodoHandler) SoftDeleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	web.RespondMessage(w, http.StatusNoContent,"Todo deleted successfully", "success", "alert")
+	
+	 web.RespondMessage(w, http.StatusOK, "Todo soft-deleted successfully", "success", "toast")
 	h.log.Info("Handler: Todo deleted successfully", "todoID", id)
 }
 func (h *TodoHandler) RestoreTodo(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +209,7 @@ func (h *TodoHandler) RestoreTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	web.RespondMessage(w,http.StatusNoContent, "Todo restored successfully", "success", "alert")
+	web.RespondMessage(w,http.StatusOK, "Todo restored successfully", "success", "alert")
 	h.log.Info("Handler: Todo restored successfully", "todoID", id)
 }
 func (h *TodoHandler) HardDeleteTodo(w http.ResponseWriter, r *http.Request) {
@@ -228,6 +230,6 @@ func (h *TodoHandler) HardDeleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	web.RespondMessage(w,http.StatusNoContent,"Todo hard deleted successfully", "danger", "alert")
+	  w.WriteHeader(http.StatusNoContent)
 	h.log.Info("Handler: Todo hard deleted successfully", "todoID", id)
 }

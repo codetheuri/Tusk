@@ -2,17 +2,7 @@ package pagination
 
 import (
 	"math"
-
-	"gorm.io/gorm"
 )
-
-type Pagination struct {
-	Page       int           `json:"page"`
-	Limit      int           `json:"limit"`
-	TotalRows  int64           `json:"total_rows"`
-	TotalPages int           `json:"total_pages"`
-	Rows       interface{} `json:"data"`
-}
 
 const (
 	DefaultPage  = 1
@@ -20,46 +10,53 @@ const (
 	MaxLimit     = 100
 )
 
-func Paginate( p *Pagination) func(db *gorm.DB) *gorm.DB {
-	if p.Page < 1 {
-		p.Page = DefaultPage
-	}
-	if p.Limit < 1 || p.Limit > MaxLimit {
-		p.Limit = DefaultLimit
-	}
-
-	offset := (p.Page - 1) * p.Limit
-	return func(tx *gorm.DB) *gorm.DB {
-		var totalRows int64
-
-
-		// tx.Model(model).Count(&totalRows)
-		// tx.Count(&totalRows)
-		tx.Session(&gorm.Session{}).Count(&totalRows)
-
-		p.TotalRows = totalRows
-
-		p.TotalPages = int(math.Ceil(float64(totalRows) / float64(p.Limit)))
-
-		// tx.Statement.Selects = nil
-
-		return tx.Offset(offset).Limit(p.Limit)
-	}
+type Params struct {
+	Page  int `json:"page"`
+	Limit int `json:"limit"`
 }
-func NewPaginationParams(page, limit int) *Pagination {
-	p := &Pagination{Page: page, Limit: limit}
-	if p.Page < 1 {
-		p.Page = DefaultPage
-	}
-	if p.Limit < 1 || p.Limit > MaxLimit {
-		p.Limit = DefaultLimit
-	}
+
+func NewPaginationParams(page, limit int) *Params {
+	p := &Params{Page: page, Limit: limit}
+	p.ApplyDefaults()
 	return p
 }
-func (p *Pagination) CalculateTotalPages() {
-	if p.Limit > 0 {
-		p.TotalPages = int(math.Ceil(float64(p.TotalRows) / float64(p.Limit)))
-	} else {
-		p.TotalPages = 0
+func (p *Params) ApplyDefaults() {
+	if p.Page < 1 {
+		p.Page = DefaultPage
 	}
+	if p.Limit < 1 || p.Limit > MaxLimit {
+		p.Limit = DefaultLimit
+	}
+}
+func (p *Params) Offset() int {
+	return (p.Page - 1) * p.Limit
+}
+
+type Metadata struct {
+	Page       int   `json:"current_page"`
+	Limit      int   `json:"per_page"`
+	TotalItems int64 `json:"total_items"`
+	TotalPages int   `json:"total_pages"`
+}
+
+func NewPaginationmetadata(page, limit int, totalItems int64) *Metadata {
+	metadata := &Metadata{
+		Page:       page,
+		Limit:      limit,
+		TotalItems: totalItems,
+	}
+	metadata.CalculateTotalPages()
+	return metadata
+}
+func (m *Metadata) CalculateTotalPages() {
+	if m.Limit > 0 {
+		m.TotalPages = int(math.Ceil(float64(m.TotalItems) / float64(m.Limit)))
+	} else {
+		m.TotalPages = 0
+	}
+}
+
+type PaginationResponse struct {
+	Data     interface{} `json:"data"`
+	Metadata *Metadata   `json:"metadata"`
 }

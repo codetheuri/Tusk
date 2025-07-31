@@ -18,7 +18,7 @@ type Datapayload struct {
 // with pagination
 type ListDatapayload struct {
 	Data       interface{}            `json:"data"`
-	Pagination *pagination.Pagination `json:"pagination"`
+	Pagination *pagination.Metadata `json:"pagination"`
 }
 
 type SuccessResponse struct {

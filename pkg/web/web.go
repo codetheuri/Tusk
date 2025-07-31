@@ -106,23 +106,19 @@ func RespondData(w http.ResponseWriter, statusCode int, data interface{}, messag
 	}
 	for _, opt := range opts {
 		opt(&resp)
-	SendJSON(w, statusCode, resp)
 	}
+	SendJSON(w, statusCode, resp)
+	
 }
-func RespondListData(w http.ResponseWriter, statusCode int, data interface{}, p *pagination.Pagination, message string) {
+func RespondListData(w http.ResponseWriter, statusCode int, data interface{}, p *pagination.Metadata) {
 	resp := SuccessResponse{
 		ListDatapayload: &ListDatapayload{
 			Data:       data,
 			Pagination: p,
 		},
 	}
-	if message != "" {
-		resp.AlertifyPayload = &AlertifyPayload{
-			Message: message,
-			Theme:   "success",
-			Type:    "alert",
-		}
-	}
+	
+	
 	SendJSON(w, statusCode, resp)
 }
 func RespondMessage(w http.ResponseWriter, statusCode int, message string, theme string, typ interface{}) {

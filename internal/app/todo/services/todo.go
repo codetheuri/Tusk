@@ -17,9 +17,9 @@ import (
 type TodoService interface {
 	CreateTodo(ctx context.Context,createReq *CreateTodoRequest) (*TodoResponse, error)
 	GetTodoByID(id uint) (*TodoResponse, error)
-	GetAllTodos(page, limit int) (*pagination.Pagination, error)
+	GetAllTodos(ctx context.Context, page, limit int) (*pagination.PaginationResponse, error)
 	UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, error)
-	GetAllIncludingDeleted(page, limit int) (*pagination.Pagination, error)
+	GetAllIncludingDeleted(ctx context.Context, page, limit int) (*pagination.PaginationResponse, error)
 	SoftDeleteTodo(id uint) error
 	RestoreTodo(id uint) error
 	HardDeleteTodo(id uint) error
@@ -33,8 +33,8 @@ type CreateTodoRequest struct {
 }
 type UpdateTodoRequest struct {
 	ID          uint   `json:"id" validate:"required"`
-	Title       string `json:"title" validate:"required,min=3,max=100"`
-	Description string `json:"description" validate:"required,max=255"`
+	Title       *string `json:"title" validate:"omitempty,min=3,max=100"`
+	Description string `json:"description" validate:"omitempty,max=255"`
 	Completed   bool   `json:"completed"`
 }
 
@@ -110,34 +110,28 @@ func (s *todoService) GetTodoByID(id uint) (*TodoResponse, error) {
 }
 
 // get all
-func (s *todoService) GetAllTodos(page, limit int) (*pagination.Pagination, error) {
+func (s *todoService) GetAllTodos(ctx context.Context,page, limit int) (*pagination.PaginationResponse, error) {
 	//fetch
-	p := &pagination.Pagination{Page: page, Limit: limit}
-	todos, err := s.repo.GetAllTodos(p)
+	p := pagination.NewPaginationParams(page, limit)
+	todos,totalCount, err := s.repo.GetAllTodos(ctx, p.Offset(), p.Limit)
 
 	if err != nil {
-		s.log.Error("service : failed to get all todos ", err)
-		return nil, err
+		  s.log.Error("Service: Failed to get all todos from repository", err)
+        return nil, appErrors.DatabaseError("failed to retrieve todos", err)
 	}
 	//map models
 	todoResponses := make([]TodoResponse, len(todos))
 	for i, todo := range todos {
-		todoResponses[i] = TodoResponse{
-			ID:          todo.ID,
-			Title:       todo.Title,
-			Description: todo.Description,
-			Completed:   todo.Completed,
-			DeletedAt:  todo.DeletedAt.Time.Format("2006-01-02 15:04:05"),
-			CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
-		}
+		todoResponses[i] = *s.toTodoResponse(&todo)
 	}
-	rowsInterface := make([]interface{}, len(todoResponses))
-	for i, v := range todoResponses {
-		rowsInterface[i] = v
-	}
-	p.Rows = rowsInterface
-	return p, nil
+	//pagination metadata
+     metadata := pagination.NewPaginationmetadata(p.Page,p.Limit, totalCount)
+    s.log.Info("Service: Successfully retrieved paginated todos", "page", p.Page, "limit", p.Limit, "total_items", totalCount)
+
+	return &pagination.PaginationResponse{
+		Data: 	 todoResponses,
+		Metadata: metadata,
+	},nil
 }
 
 // update
@@ -160,8 +154,8 @@ func (s *todoService) UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, e
 		return nil, err
 	}
 	//update fields
-	if updateReq.Title != "" {
-		existingTodo.Title = updateReq.Title
+	if updateReq.Title != nil {
+		existingTodo.Title = *updateReq.Title
 	}
 	if updateReq.Description != "" {
 		existingTodo.Description = updateReq.Description
@@ -184,33 +178,27 @@ func (s *todoService) UpdateTodo(updateReq *UpdateTodoRequest) (*TodoResponse, e
 
 }
 // get all including deleted
-func (s *todoService) GetAllIncludingDeleted(page, limit int) (*pagination.Pagination, error) {
+func (s *todoService) GetAllIncludingDeleted(ctx context.Context, page, limit int) (*pagination.PaginationResponse, error) {
+	p := pagination.NewPaginationParams(page, limit)
+	todos,totalCount, err := s.repo.GetAllIncludingDeleted(ctx, p.Offset(), p.Limit)
 
-	p := &pagination.Pagination{Page: page, Limit: limit}
-	todos, err := s.repo.GetAllIncludingDeleted(p)
 	if err != nil {
-		s.log.Error("service: failed to get all todos including deleted", err)
-		return nil, err
+		  s.log.Error("Service: Failed to get all todos from repository", err)
+        return nil, appErrors.DatabaseError("failed to retrieve todos", err)
 	}
-	
+	//map models
 	todoResponses := make([]TodoResponse, len(todos))
 	for i, todo := range todos {
-		todoResponses[i] = TodoResponse{
-			ID:          todo.ID,
-			Title:       todo.Title,
-			Description: todo.Description,
-			Completed:   todo.Completed,
-			DeletedAt:   todo.DeletedAt.Time.Format("2006-01-02 15:04:05"),
-			CreatedAt:   todo.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   todo.UpdatedAt.Format("2006-01-02 15:04:05"),
-		}
-	}	
-	rowsInterface := make([]interface{}, len(todoResponses))
-	for i, v := range todoResponses {
-		rowsInterface[i] = v
+		todoResponses[i] = *s.toTodoResponse(&todo)
 	}
-	p.Rows = rowsInterface
-	return p, nil
+	//pagination metadata
+     metadata := pagination.NewPaginationmetadata(p.Page,p.Limit, totalCount)
+    s.log.Info("Service: Successfully retrieved paginated todos", "page", p.Page, "limit", p.Limit, "total_items", totalCount)
+
+	return &pagination.PaginationResponse{
+		Data: 	 todoResponses,
+		Metadata: metadata,
+	},nil
 }
 
 // soft delete

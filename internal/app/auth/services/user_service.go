@@ -58,7 +58,8 @@ func (s *userService) RegisterUser(ctx context.Context, email, password, role st
 	}
 	if existingUser != nil {
 		s.log.Warn("User with this email already exists", "email", email)
-		return nil, appErrors.AuthError("User with this email already exists", nil)
+		// return nil, appErrors.AuthError("User with this email already exists", nil)
+		return nil, appErrors.ConflictError("user with this email already exists", nil)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

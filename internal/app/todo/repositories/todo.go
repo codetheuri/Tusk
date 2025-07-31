@@ -7,7 +7,6 @@ import (
 	"github.com/codetheuri/todolist/internal/app/todo/models"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
-	"github.com/codetheuri/todolist/pkg/pagination"
 	"golang.org/x/net/context"
 	"gorm.io/gorm"
 )
@@ -16,9 +15,9 @@ import (
 type TodoRepository interface {
 	CreateTodo(ctx context.Context, todo *models.Todo) (*models.Todo, error)
 	GetTodoByID(id uint) (*models.Todo, error)
-	GetAllTodos(p *pagination.Pagination) ([]models.Todo, error)
+	GetAllTodos(ctx context.Context, offset, limit int) ([]models.Todo, int64, error)
 	UpdateTodo(todo *models.Todo) (*models.Todo, error)
-	GetAllIncludingDeleted(p *pagination.Pagination) ([]models.Todo, error)
+	GetAllIncludingDeleted(ctx context.Context, offset, limit int) ([]models.Todo, int64, error)
 	SoftDeleteTodo(id uint) error
 	RestoreTodo(id uint) error
 	HardDeleteTodo(id uint) error
@@ -63,19 +62,21 @@ func (r *gormTodoRepository) GetTodoByID(id uint) (*models.Todo, error) {
 }
 
 // retrieve all todos
-func (r *gormTodoRepository) GetAllTodos(p *pagination.Pagination) ([]models.Todo, error) {
+func (r *gormTodoRepository) GetAllTodos(ctx context.Context, offset, limit int) ([]models.Todo, int64, error) {
 	var todos []models.Todo
-	//  apply pagination
-	// result := r.db.Scopes(pagination.Paginate(&models.Todo{},p,r.db)).Find(&todos)
-
-	result := r.db.Model(&models.Todo{}).Scopes(pagination.Paginate(p)).Find(&todos)
-	if result.Error != nil {
-		r.log.Error("Repository: Failed to fetch all todos", result.Error)
-		return nil, appErrors.DatabaseError("Failed to fetch todos", result.Error)
+	var totalCount int64
+	//count records
+	if err := r.db.WithContext(ctx).Model(&models.Todo{}).Count(&totalCount).Error; err != nil {
+		r.log.Error("Repository: Failed to count todos", err)
+		return nil, 0, err
+	}
+	//fetch todos with pagination
+	if err := r.db.WithContext(ctx).Offset(offset).Limit(limit).Find(&todos).Error; err != nil {
+		r.log.Error("Repository: Failed to fetch all todos", err)
+		return nil, 0, err
 	}
 
-	r.log.Info("todos retrieved successfully", "count", len(todos))
-	return todos, nil
+	return todos, totalCount, nil
 }
 
 // update a todo by ID
@@ -100,17 +101,20 @@ func (r *gormTodoRepository) UpdateTodo(todo *models.Todo) (*models.Todo, error)
 	r.log.Info("todo updated successfully", "id", existingTodo.ID)
 	return todo, nil
 }
-func (r *gormTodoRepository) GetAllIncludingDeleted(p *pagination.Pagination) ([]models.Todo, error) {
+func (r *gormTodoRepository) GetAllIncludingDeleted(ctx context.Context, offset, limit int) ([]models.Todo, int64, error) {
 	var todos []models.Todo
-	// apply pagination
-	result := r.db.Unscoped().Model(&models.Todo{}).Scopes(pagination.Paginate(p)).Find(&todos)
-	if result.Error != nil {
-		r.log.Error("Repository: Failed to fetch all todos including deleted", result.Error)
-		return nil, appErrors.DatabaseError("Failed to fetch todos including deleted", result.Error)
+	var totalCount int64
+	if err := r.db.Unscoped().WithContext(ctx).Model(&models.Todo{}).Count(&totalCount).Error; err != nil {
+		r.log.Error("Repository: Failed to count todos", err)
+		return nil, 0, err
+	}
+	//fetch todos with pagination
+	if err := r.db.WithContext(ctx).Offset(offset).Limit(limit).Find(&todos).Error; err != nil {
+		r.log.Error("Repository: Failed to fetch all todos", err)
+		return nil, 0, err
 	}
 
-	r.log.Info("todos including deleted retrieved successfully", "count", len(todos))
-	return todos, nil
+	return todos, totalCount, nil
 }
 
 // delete a todo by ID

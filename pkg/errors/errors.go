@@ -68,6 +68,10 @@ func DatabaseError(message string, err error) AppError {
 func NotFoundError(message string, err error) AppError {
 	return New("NOT_FOUND", message, err)
 }
+// conflict errors (e.g. duplicate entries)
+func ConflictError(message string, err error) AppError {
+	return New("CONFLICT_ERROR", message, err)
+}
 
 // validation issues
 func ValidationError(message string, err error, fieldErrors interface{}) AppError {

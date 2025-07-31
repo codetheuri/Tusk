@@ -338,29 +338,33 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	web.RespondMessage(w, http.StatusOK, "Logged out successfully", "success", "toast")
 	
 }
-func (h *authHandler) handleAppError(w http.ResponseWriter, err error, action string) {
-	var appErr appErrors.AppError
-	if errors.As(err, &appErr) {
-		h.log.Error(fmt.Sprintf("Handler: Application error during %s", action), err, "code", appErr.Code())
-		switch appErr.Code() {
-		case "AUTH_ERROR":
-			web.RespondError(w, appErr, http.StatusUnauthorized) // For invalid credentials, revoked token etc.
-		case "NOT_FOUND":
-			web.RespondError(w, appErr, http.StatusNotFound)
-		case "VALIDATION_ERROR":
-			web.RespondError(w, appErr, http.StatusBadRequest)
-		case "DATABASE_ERROR":
-			web.RespondError(w, appErr, http.StatusInternalServerError)
-		case "INTERNAL_SERVER_ERROR":
-			web.RespondError(w, appErr, http.StatusInternalServerError)
-		default:
-			// Catch-all for unhandled AppError codes
-			web.RespondError(w, appErrors.InternalServerError(
-				fmt.Sprintf("an unexpected application error occurred with code %s", appErr.Code()), appErr), http.StatusInternalServerError)
-		}
-	} else {
-		// Handle unexpected non-AppError errors
-		h.log.Error(fmt.Sprintf("Handler: Unknown error during %s", action), err)
-		web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
-	}
+ func (h *authHandler) handleAppError(w http.ResponseWriter, err error, action string) {
+    var appErr appErrors.AppError
+    if errors.As(err, &appErr) {
+        h.log.Error(fmt.Sprintf("Handler: Application error during %s", action), err, "code", appErr.Code())
+        switch appErr.Code() {
+        case "AUTH_ERROR":
+            web.RespondError(w, appErr, http.StatusUnauthorized)
+        case "NOT_FOUND":
+            web.RespondError(w, appErr, http.StatusNotFound)
+        case "VALIDATION_ERROR": // Keep this, it handles generic validation failures
+            web.RespondError(w, appErr, http.StatusBadRequest) // Often 400 or 422 for validation
+        case "DATABASE_ERROR":
+            web.RespondError(w, appErr, http.StatusInternalServerError)
+        case "INTERNAL_SERVER_ERROR":
+            web.RespondError(w, appErr, http.StatusInternalServerError)
+        case "CONFLICT_ERROR": // <--- ADD THIS CASE
+            web.RespondError(w, appErr, http.StatusConflict) // HTTP 409 Conflict
+        case "FORBIDDEN": // Ensure this is also handled
+            web.RespondError(w, appErr, http.StatusForbidden)
+        case "UNAUTHORIZED": // Differentiate from AUTH_ERROR if needed, though often similar
+            web.RespondError(w, appErr, http.StatusUnauthorized)
+        default:
+            web.RespondError(w, appErrors.InternalServerError(
+                fmt.Sprintf("an unexpected application error occurred with code %s", appErr.Code()), appErr), http.StatusInternalServerError)
+        }
+    } else {
+        h.log.Error(fmt.Sprintf("Handler: Unknown error during %s", action), err)
+        web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
+    }
 }
