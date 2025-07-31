@@ -15,10 +15,10 @@ import (
 type Module struct {
 	Handlers *todoHandlers.TodoHandler
 	log      logger.Logger
-	token tokenPkg.TokenService
+	TokenService tokenPkg.TokenService
 }
 
-func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) *Module {
+func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator, tokenService tokenPkg.TokenService) *Module {
 	// Initialize the repository
 	todoRepo := todoRepositories.NewGormTodoRepository(db, log)
 
@@ -31,13 +31,14 @@ func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator) 
 	return &Module{
 		Handlers: todoHandler,
 		log: 	log,
+		TokenService: tokenService,
 	}
 }
 
 func (m *Module) RegisterRoutes(r chi.Router) {
 	// Register the routes for the todo module
 	r.Route("/todos", func(r chi.Router) {
-		r.Use(middleware.Authenticator(m.token, m.log)) // Apply authentication middleware
+		r.Use(middleware.Authenticator(m.TokenService, m.log)) // Apply authentication middleware
 		r.Post("/", m.Handlers.CreateTodo)
 		r.Get("/{id}", m.Handlers.GetTodoByID)
 		r.Get("/", m.Handlers.GetAllTodos)

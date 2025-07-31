@@ -188,6 +188,13 @@ func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	// Bounds check: ensure userID fits in uint
+	if userID > uint64(math.MaxUint) {
+		h.log.Warn("Handler: User ID out of range for uint", "id", userIDStr)
+		web.RespondError(w, appErrors.ValidationError("user ID out of range", nil, nil), http.StatusBadRequest)
+		return
+	}
+
 	user, err := h.authServices.UserService.GetUserByID(ctx, uint(userID))
 	if err != nil {
 		h.log.Error("Handler: Failed to get user profile through service", err, "userID", userID)
@@ -262,6 +269,11 @@ func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	if userID > math.MaxUint {
+		h.log.Warn("Handler: User ID out of range for uint type", "userID", userID)
+		web.RespondError(w, appErrors.ValidationError("user ID out of range", nil, nil), http.StatusBadRequest)
+		return
+	}
 	err = h.authServices.UserService.DeleteUser(ctx, uint(userID))
 	if err != nil {
 		h.log.Error("Handler: Failed to delete user through service", err, "userID", userID)
@@ -286,6 +298,11 @@ func (h *authHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	if userID > math.MaxUint {
+		h.log.Warn("Handler: User ID out of range for uint type", "userID", userID)
+		web.RespondError(w, appErrors.ValidationError("user ID out of range", nil, nil), http.StatusBadRequest)
+		return
+	}
 	err = h.authServices.UserService.RestoreUser(ctx, uint(userID))
 	if err != nil {
 		h.log.Error("Handler: Failed to restore user through service", err, "userID", userID)
