@@ -13,6 +13,7 @@ import (
 	tokenPkg "github.com/codetheuri/todolist/pkg/auth/token"
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/todolist/pkg/pagination"
 	"github.com/codetheuri/todolist/pkg/web"
 	"github.com/go-chi/chi"
 	"golang.org/x/crypto/bcrypt"
@@ -26,6 +27,7 @@ type AuthHandler interface {
 	Register(w http.ResponseWriter, r *http.Request)
 	Login(w http.ResponseWriter, r *http.Request)
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
+	GetUsers(w http.ResponseWriter, r *http.Request)
 	ChangePassword(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
 	RestoreUser(w http.ResponseWriter, r *http.Request)
@@ -203,9 +205,11 @@ func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := dto.GetUserProfileResponse{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
+		UserID:    user.ID,
+		Email:     user.Email,
+		CreatedAt: &user.CreatedAt, // Ensure CreatedAt is included
+
+		// Role:   user.Role,
 	}
 
 	h.log.Info("Handler: User profile retrieved successfully", "userID", user.ID)
@@ -312,7 +316,7 @@ func (h *authHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 
 	h.log.Info("Handler: User restored successfully", "userID", userID)
 	web.RespondMessage(w, http.StatusOK, "User restored successfully", "success", "toast")
-	
+
 }
 
 func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -336,35 +340,69 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	h.log.Info("Handler: User logged out successfully (token revoked)", "jti", jti)
 	web.RespondMessage(w, http.StatusOK, "Logged out successfully", "success", "toast")
-	
+
 }
- func (h *authHandler) handleAppError(w http.ResponseWriter, err error, action string) {
-    var appErr appErrors.AppError
-    if errors.As(err, &appErr) {
-        h.log.Error(fmt.Sprintf("Handler: Application error during %s", action), err, "code", appErr.Code())
-        switch appErr.Code() {
-        case "AUTH_ERROR":
-            web.RespondError(w, appErr, http.StatusUnauthorized)
-        case "NOT_FOUND":
-            web.RespondError(w, appErr, http.StatusNotFound)
-        case "VALIDATION_ERROR": // Keep this, it handles generic validation failures
-            web.RespondError(w, appErr, http.StatusBadRequest) // Often 400 or 422 for validation
-        case "DATABASE_ERROR":
-            web.RespondError(w, appErr, http.StatusInternalServerError)
-        case "INTERNAL_SERVER_ERROR":
-            web.RespondError(w, appErr, http.StatusInternalServerError)
-        case "CONFLICT_ERROR": // <--- ADD THIS CASE
-            web.RespondError(w, appErr, http.StatusConflict) // HTTP 409 Conflict
-        case "FORBIDDEN": // Ensure this is also handled
-            web.RespondError(w, appErr, http.StatusForbidden)
-        case "UNAUTHORIZED": // Differentiate from AUTH_ERROR if needed, though often similar
-            web.RespondError(w, appErr, http.StatusUnauthorized)
-        default:
-            web.RespondError(w, appErrors.InternalServerError(
-                fmt.Sprintf("an unexpected application error occurred with code %s", appErr.Code()), appErr), http.StatusInternalServerError)
-        }
-    } else {
-        h.log.Error(fmt.Sprintf("Handler: Unknown error during %s", action), err)
-        web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
-    }
+func (h *authHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	h.log.Debug("Handler: Received Get users request")
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		page = pagination.DefaultPage
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = pagination.DefaultLimit
+	}
+	ctx := r.Context()
+
+	pParams := pagination.NewPaginationParams(page, limit)
+	users, totalCount, err := h.authServices.UserService.GetUsers(ctx, pParams.Offset(), pParams.Limit)
+	if err != nil {
+		h.log.Error("Handler: Service call failed for GetUsers", err)
+		h.handleAppError(w, err, "get users")
+		return
+	}
+	userResponses := make([]dto.GetUserProfileResponse, len(users))
+	for i, user := range users {
+		userResponses[i] = dto.GetUserProfileResponse{
+			UserID: user.ID,
+			Email:  user.Email,
+			// Role:      user.Role,
+			CreatedAt: &user.CreatedAt,
+		}
+	}
+	metadata := pagination.NewPaginationmetadata(pParams.Page, pParams.Limit, totalCount)
+
+	web.RespondListData(w, http.StatusOK, userResponses, metadata)
+}
+func (h *authHandler) handleAppError(w http.ResponseWriter, err error, action string) {
+	var appErr appErrors.AppError
+	if errors.As(err, &appErr) {
+		h.log.Error(fmt.Sprintf("Handler: Application error during %s", action), err, "code", appErr.Code())
+		switch appErr.Code() {
+		case "AUTH_ERROR":
+			web.RespondError(w, appErr, http.StatusUnauthorized)
+		case "NOT_FOUND":
+			web.RespondError(w, appErr, http.StatusNotFound)
+		case "VALIDATION_ERROR": // Keep this, it handles generic validation failures
+			web.RespondError(w, appErr, http.StatusBadRequest) // Often 400 or 422 for validation
+		case "DATABASE_ERROR":
+			web.RespondError(w, appErr, http.StatusInternalServerError)
+		case "INTERNAL_SERVER_ERROR":
+			web.RespondError(w, appErr, http.StatusInternalServerError)
+		case "CONFLICT_ERROR": // <--- ADD THIS CASE
+			web.RespondError(w, appErr, http.StatusConflict) // HTTP 409 Conflict
+		case "FORBIDDEN": // Ensure this is also handled
+			web.RespondError(w, appErr, http.StatusForbidden)
+		case "UNAUTHORIZED": // Differentiate from AUTH_ERROR if needed, though often similar
+			web.RespondError(w, appErr, http.StatusUnauthorized)
+		default:
+			web.RespondError(w, appErrors.InternalServerError(
+				fmt.Sprintf("an unexpected application error occurred with code %s", appErr.Code()), appErr), http.StatusInternalServerError)
+		}
+	} else {
+		h.log.Error(fmt.Sprintf("Handler: Unknown error during %s", action), err)
+		web.RespondError(w, appErrors.InternalServerError("an unknown error occurred", err), http.StatusInternalServerError)
+	}
 }

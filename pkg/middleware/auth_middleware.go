@@ -38,9 +38,10 @@ func Authenticator(tokenService tokenPkg.TokenService, log logger.Logger) func(n
 				log.Warn("Middleware: Token validation failed", err)
 				var appErr appErrors.AppError
 				if errors.As(err, &appErr) {
-					web.RespondError(w, appErr, http.StatusUnauthorized)
+					// web.RespondError(w, appErr, http.StatusUnauthorized)
+					web.RespondMessage(w, http.StatusUnauthorized, appErr.Message(), "", "")
 				} else {
-					web.RespondError(w, appErrors.AuthError("invalid or expired token", err), http.StatusUnauthorized)
+					web.RespondError(w, appErrors.AuthError("Your request was made with invalid credentials.", err), http.StatusUnauthorized)
 				}
 				return
 			}

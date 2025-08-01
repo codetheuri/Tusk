@@ -82,7 +82,7 @@ func (s *jwtService) ValidateToken(ctx context.Context, tokenString string) (*to
 	if err != nil {
 		s.log.Warn("Failed to parse or validate token", err)
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, appErrors.AuthError("token expired", err)
+			return nil, appErrors.AuthError("Your request was made with invalid credentials.", err)
 		}
 		if errors.Is(err, jwt.ErrSignatureInvalid) {
 			return nil, appErrors.AuthError("invalid token signature", err)

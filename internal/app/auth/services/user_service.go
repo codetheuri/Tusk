@@ -17,6 +17,7 @@ type UserService interface {
 	RegisterUser(ctx context.Context, email, password, role string) (*models.User, error)
 	GetUserByID(ctx context.Context, id uint) (*models.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+	GetUsers(ctx context.Context, offset, limit int) ([]*models.User, int64, error)
 	UpdateUser(ctx context.Context, user *models.User) error
 	ChangePassword(ctx context.Context, userID uint, oldPassword, newPassword string) error
 	DeleteUser(ctx context.Context, id uint) error
@@ -194,4 +195,14 @@ func (s *userService) RestoreUser(ctx context.Context, id uint) error {
 	}
 
 	return nil
+}
+func (s *userService) GetUsers(ctx context.Context, offset, limit int) ([]*models.User, int64, error) {
+	s.log.Info("Service: Getting users with pagination params", "offset", offset, "limit", limit)
+	users, totalCount, err := s.userRepo.GetUsers(ctx, offset, limit)
+	if err != nil {
+		s.log.Error("Service: Failed to get users from repository", err)
+		return nil, 0, appErrors.DatabaseError("failed to retrieve users", err)
+	}
+	s.log.Info("Service: Successfully retrieved paginated users (models)", "count", len(users), "total", totalCount)
+	return users, totalCount, nil
 }

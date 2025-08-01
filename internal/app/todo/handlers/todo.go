@@ -134,7 +134,7 @@ func (h *TodoHandler) GetAllIncludingDeleted(w http.ResponseWriter, r *http.Requ
 	}
 	// web.RespondJSON(w, http.StatusOK, p)
 	web.RespondListData(w,http.StatusOK,p.Data,p.Metadata)
-	h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Metadata.Page, "limit", p.Metadata.Limit, "total_item", p.Metadata.TotalItems)
+	// h.log.Info("Handler: Todos including deleted retrieved successfully", "page", p.Metadata.Page, "limit", p.Metadata.Limit, "total_item", p.Metadata.TotalItems)
 }
 func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received UpdateTodo request")

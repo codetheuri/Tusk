@@ -56,6 +56,7 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 		r.Delete("/auth/users/{id}", m.Handler.DeleteUser)
 		r.Put("/auth/users/{id}/restore", m.Handler.RestoreUser)
 		r.Post("/auth/logout", m.Handler.Logout)
+		r.Get("/auth/users", m.Handler.GetUsers)
 	})
 
 	m.log.Info("Auth module routes registered.")

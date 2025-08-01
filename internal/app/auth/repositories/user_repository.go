@@ -13,6 +13,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	GetUserByID(ctx context.Context, id uint) (*models.User, error)
+	GetUsers(ctx context.Context, offset, limit int) ([]*models.User, int64, error)
 	UpdateUser(ctx context.Context, user *models.User) error
 	DeleteUser(ctx context.Context, id uint) error
 	RestoreUser(ctx context.Context, id uint) error
@@ -64,3 +65,18 @@ func (r *userRepository) RestoreUser(ctx context.Context, id uint) error {
 	r.log.Info("RestoreUser repository")
 	return r.db.WithContext(ctx).Unscoped().Model(&models.User{}).Where("id = ?", id).Update("deleted_at", nil).Error
 }
+func (r *userRepository) GetUsers(ctx context.Context, offset, limit int) ([]*models.User, int64, error) {
+	var users []*models.User
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&models.User{}).Count(&total).Error; err != nil {
+		r.log.Error("Repository: Failed to count todos", err)
+		return nil, 0, err
+	}
+
+	if err := r.db.WithContext(ctx).Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+		r.log.Error("Repository: Failed to fetch all users", err)
+		return nil, 0, err
+	}
+	return users, total, nil
+}
+
