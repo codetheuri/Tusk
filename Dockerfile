@@ -1,20 +1,27 @@
-    # Use a multi-stage build for smaller images
-    FROM golang:1.22-alpine AS builder
+# Build stage
+FROM golang:1.24-alpine AS builder
 
-    WORKDIR /app
+WORKDIR /app
 
-    COPY go.mod go.sum ./
-    RUN go mod download
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
 
-    COPY . .
-    RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# Copy source files
+COPY . .
 
-    FROM alpine:latest
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o tusk cmd/main.go
 
-    WORKDIR /root/
+# Runtime stage
+FROM alpine:latest
 
-    COPY --from=builder /app/main .
+WORKDIR /root/
 
-    EXPOSE 8081
+# Copy the binary from builder
+COPY --from=builder /app/tusk .
+COPY --from=builder /app/.env .
 
-    CMD ["./main"]
+EXPOSE 8080
+
+CMD ["./tusk"]

@@ -36,6 +36,14 @@ type Config struct {
 	DBMaxIdleConns    int
 	DBMaxOpenConns    int
 	DBConnMaxLifetime int
+
+	//mailer config
+	MailerHost     string
+	MailerPort     int
+	MailerUsername     string
+	MailerPassword string
+	MailerSender   string
+	
 }
 
 func LoadConfig() (*Config, error) {
@@ -59,6 +67,14 @@ func LoadConfig() (*Config, error) {
 		DBMaxIdleConns:    10,
 		DBMaxOpenConns:    100,
 		DBConnMaxLifetime: 60, // default value in seconds
+
+		// Mailer configuration
+		MailerHost:     os.Getenv("MAIL_HOST"),
+		MailerUsername: os.Getenv("MAIL_USERNAME"),
+		MailerPassword: os.Getenv("MAIL_PASSWORD"),
+		MailerSender:   os.Getenv("MAIL_SENDER"),
+
+		
 
 	}
 	JWTSecret :=   os.Getenv("JWT_SECRET")
@@ -101,8 +117,16 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, errors.ConfigError(fmt.Sprintf("Invalid SERVER_PORT value : %s", serverPortStr), err)
 	}
-
 	cfg.ServerPort = serverPort
+      //mail port
+	mailerPortStr := os.Getenv("MAIL_PORT")
+     if mailerPortStr != "" { 
+		mailPort, err := strconv.Atoi(mailerPortStr)
+		if err != nil {
+			return nil, errors.ConfigError(fmt.Sprintf("Invalid MAIL_PORT value: %s", mailerPortStr), err)
+		}
+		cfg.MailerPort = mailPort
+	}
 
 	//basic validation
 	if cfg.DBDriver != "sqlite" && (cfg.DBUser == "" || cfg.DBPass == "" || cfg.DBHost == "" || cfg.DBName == "") {
@@ -139,7 +163,7 @@ func LoadConfig() (*Config, error) {
 			cfg.DBName,
 		)
 	case "postgres", "pgsql":
-		cfg.DbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Africa/Nairobi",
+		cfg.DbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
 			cfg.DBHost,
 			cfg.DBUser,
 			cfg.DBPass,
