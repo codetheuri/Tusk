@@ -12,7 +12,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Copy .env
+    - name: Run Tests
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/app golang:1.24-alpine go test ./...
+      continue-on-error: false
+
+    - name: Create .env
       run: |
         echo "APP_NAME=${{ vars.APP_NAME }}" > .env
         echo "APP_MODE=${{ vars.APP_MODE }}" >> .env
@@ -39,21 +44,49 @@ jobs:
         key: ${{ secrets.VPS_PRIVATE_KEY }}
         port: ${{ secrets.VPS_PORT }}
         script: |
-          # Navigate to Tusk app directory
+          # Ensure directory exists
+          mkdir -p /var/www/html/domains/tusk
           cd /var/www/html/domains/tusk
-          git pull origin main
+
+          # Clone repo if it doesn't exist
+          if [ ! -d .git ]; then
+            git clone https://github.com/codetheuri/Tusk.git .
+            git checkout main
+          else
+            git fetch origin
+            git reset --hard origin/main
+          fi
+
           # Copy .env to host
-          cp ${{ github.workspace }}/.env .env
+          cp ${{ github.workspace }}/.env .env || { echo "Failed to copy .env"; exit 1; }
+
+          # Verify docker-compose.yml exists
+          if [ ! -f docker-compose.yml ]; then
+            echo "docker-compose.yml not found"; exit 1;
+          fi
+
           # Rebuild and restart Tusk container
           docker-compose down
-          docker-compose up -d --build
+          docker-compose up -d --build || { echo "Docker compose failed"; exit 1; }
+
+          # Wait for container to be healthy
+          for i in {1..30}; do
+            if docker inspect --format='{{.State.Health.Status}}' tusk-api | grep -q "healthy"; then
+              break
+            fi
+            sleep 2
+          done
+
           # Run database migrations
-          docker exec tusk-api ./tusk_migrate up
+          docker exec tusk-api ./tusk_migrate up || { echo "Migrations failed"; exit 1; }
+
           # Prune unused Docker resources
           docker container prune -f
           docker image prune -af
           docker volume prune -f
+
           # Restart main Nginx
-          docker restart nginx
+          docker restart nginx || { echo "Nginx restart failed"; exit 1; }
+
           # Clean system logs
           sudo journalctl --vacuum-size=100M
