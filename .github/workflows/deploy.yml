@@ -104,4 +104,4 @@ jobs:
           docker restart nginx || { echo "Nginx restart failed"; exit 1; }
 
           # Clean system logs
-          sudo journalctl --vacuum-size=100M
+          sudo journalctl --vacuum-size=100M 
