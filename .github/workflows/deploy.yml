@@ -51,6 +51,16 @@ jobs:
         cat ${{ github.workspace }}/.env || { echo "Failed to read .env"; exit 1; }
         echo ".env file created successfully"
 
+    - name: Transfer .env to VPS
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_PRIVATE_KEY }}
+        port: ${{ secrets.VPS_PORT }}
+        source: "${{ github.workspace }}/.env"
+        target: "/var/www/html/domains/tusk/"
+
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -72,8 +82,10 @@ jobs:
             git reset --hard origin/main
           fi
 
-          # Copy .env to host
-          cp ${{ github.workspace }}/.env .env || { echo "Failed to copy .env"; exit 1; }
+          # Verify .env exists
+          if [ ! -f .env ]; then
+            echo ".env not found after transfer"; exit 1;
+          fi
 
           # Verify docker-compose.yml exists
           if [ ! -f docker-compose.yml ]; then
@@ -104,4 +116,4 @@ jobs:
           docker restart nginx || { echo "Nginx restart failed"; exit 1; }
 
           # Clean system logs
-          sudo journalctl --vacuum-size=100M 
+          sudo journalctl --vacuum-size=100M
