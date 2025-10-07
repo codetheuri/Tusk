@@ -1,18 +1,45 @@
 services:
   tusk-api:
     container_name: tusk-api 
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8080:8081"
+      - "9002:8081"
     environment:
-      - APP_ENV=development
-
-    restart: on-failure
+      - APP_ENV=production
+      - APP_NAME=${APP_NAME}
+      - APP_MODE=${APP_MODE}
+      - SERVER_PORT=${SERVER_PORT}
+      - DB_DRIVER=${DB_DRIVER}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - JWT_SECRET=${JWT_SECRET}
+      - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_SENDER=${MAIL_SENDER}
+    volumes:
+      - /var/www/html/domains/tusk:/app
+    restart: unless-stopped 
     networks:
-      shared:
-        ipv4_address: 172.20.0.8 
+      tigerforge-db:
+        ipv4_address: 172.20.0.9 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"    
 
 networks:
-  shared:
+  tigerforge-db:
     external: true
-    name: afya365

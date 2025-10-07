@@ -1,0 +1,59 @@
+name: Deploy Tusk API
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Copy .env
+      run: |
+        echo "APP_NAME=${{ vars.APP_NAME }}" > .env
+        echo "APP_MODE=${{ vars.APP_MODE }}" >> .env
+        echo "SERVER_PORT=${{ vars.SERVER_PORT }}" >> .env
+        echo "DB_DRIVER=${{ vars.DB_DRIVER }}" >> .env
+        echo "DB_HOST=${{ vars.DB_HOST }}" >> .env
+        echo "DB_PORT=${{ vars.DB_PORT }}" >> .env
+        echo "DB_NAME=${{ vars.DB_NAME }}" >> .env
+        echo "DB_USER=${{ vars.DB_USER }}" >> .env
+        echo "DB_PASS=${{ secrets.DB_PASS }}" >> .env
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+        echo "ACCESS_TOKEN_TTL=${{ vars.ACCESS_TOKEN_TTL }}" >> .env
+        echo "MAIL_HOST=${{ vars.MAIL_HOST }}" >> .env
+        echo "MAIL_PORT=${{ vars.MAIL_PORT }}" >> .env
+        echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
+        echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
+        echo "MAIL_SENDER=${{ secrets.MAIL_SENDER }}" >> .env
+
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_PRIVATE_KEY }}
+        port: ${{ secrets.VPS_PORT }}
+        script: |
+          # Navigate to Tusk app directory
+          cd /var/www/html/domains/tusk
+          git pull origin main
+          # Copy .env to host
+          cp ${{ github.workspace }}/.env .env
+          # Rebuild and restart Tusk container
+          docker-compose down
+          docker-compose up -d --build
+          # Run database migrations
+          docker exec tusk-api ./tusk_migrate up
+          # Prune unused Docker resources
+          docker container prune -f
+          docker image prune -af
+          docker volume prune -f
+          # Restart main Nginx
+          docker restart nginx
+          # Clean system logs
+          sudo journalctl --vacuum-size=100M
