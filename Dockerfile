@@ -21,8 +21,8 @@ WORKDIR /root/
 
 # Copy the binary from builder
 COPY --from=builder /app/tusk .
-COPY --from=builder /app/.env .
+# COPY --from=builder /app/.env .
 
-EXPOSE 8080
+EXPOSE 8081
 
 CMD ["./tusk"]
