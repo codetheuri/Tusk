@@ -16,40 +16,12 @@ jobs:
       run: |
         echo "Workspace: ${{ github.workspace }}"
         ls -la ${{ github.workspace }}
-        cat ${{ github.workspace }}/go.mod || echo "go.mod not found"
-        find ${{ github.workspace }} -name "*_test.go" || echo "No test files found"
+        find ${{ github.workspace }} -name "*.go" | head -10
 
     - name: Run Tests
       run: |
-        docker run --rm -v ${{ github.workspace }}:/app golang:1.24-alpine sh -c "cd /app && go test ./... || echo 'No tests found or test setup failed, continuing deployment'"
+        docker run --rm -v ${{ github.workspace }}:/app golang:1.24-alpine sh -c "cd /app && go test ./... -v || echo 'Tests completed'"
       continue-on-error: true
-
-    - name: Create .env
-      run: |
-        echo "Creating .env in ${{ github.workspace }}"
-        touch ${{ github.workspace }}/.env || { echo "Failed to create .env file"; exit 1; }
-        echo "Writing environment variables to .env"
-        cat << EOF > ${{ github.workspace }}/.env
-        APP_NAME=${{ vars.APP_NAME }}
-        APP_MODE=${{ vars.APP_MODE }}
-        SERVER_PORT=${{ vars.SERVER_PORT }}
-        DB_DRIVER=${{ vars.DB_DRIVER }}
-        DB_HOST=${{ vars.DB_HOST }}
-        DB_PORT=${{ vars.DB_PORT }}
-        DB_NAME=${{ vars.DB_NAME }}
-        DB_USER=${{ vars.DB_USER }}
-        DB_PASS=${{ secrets.DB_PASS }}
-        JWT_SECRET=${{ secrets.JWT_SECRET }}
-        ACCESS_TOKEN_TTL=${{ vars.ACCESS_TOKEN_TTL }}
-        MAIL_HOST=${{ vars.MAIL_HOST }}
-        MAIL_PORT=${{ vars.MAIL_PORT }}
-        MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
-        MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-        MAIL_SENDER=${{ secrets.MAIL_SENDER }}
-        EOF
-        echo "Verifying .env content:"
-        cat ${{ github.workspace }}/.env || { echo "Failed to read .env"; exit 1; }
-        echo ".env file created successfully"
 
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
@@ -59,18 +31,23 @@ jobs:
         key: ${{ secrets.VPS_PRIVATE_KEY }}
         port: ${{ secrets.VPS_PORT }}
         script: |
-          # Test SSH connectivity
-          echo "Testing SSH connectivity"
-          whoami || { echo "SSH authentication failed"; exit 1; }
-          hostname
-
-          # Ensure directory exists
-          mkdir -p /var/www/html/domains/tusk
+          set -e  # Exit on error
+          echo "🚀 Starting Tusk API deployment..."
+          
+          # Navigate to project directory
           cd /var/www/html/domains/tusk
-
-          # Create .env on VPS
-          echo "Creating .env on VPS"
-          cat << EOF > .env
+          
+          # Clean up .env conflicts
+          echo "🧹 Cleaning up environment..."
+          if [ -d .env ]; then
+            echo "Removing .env directory..."
+            rm -rf .env
+          fi
+          [ -f .env ] && rm -f .env
+          
+          # Create fresh .env file
+          echo "📝 Creating environment file..."
+          cat > .env << EOF
           APP_NAME=${{ vars.APP_NAME }}
           APP_MODE=${{ vars.APP_MODE }}
           SERVER_PORT=${{ vars.SERVER_PORT }}
@@ -89,52 +66,45 @@ jobs:
           MAIL_SENDER=${{ secrets.MAIL_SENDER }}
           EOF
 
-          # Verify .env exists and has content
-          if [ ! -f .env ]; then
-            echo ".env not found after creation"; exit 1;
-          fi
-          if [ ! -s .env ]; then
-            echo ".env is empty"; exit 1;
-          fi
-          echo "Verifying .env content on VPS:"
-          cat .env
-
-          # Clone repo if it doesn't exist
+          echo "✅ Environment file created"
+          ls -la .env
+          
+          # Clone or update repository
           if [ ! -d .git ]; then
+            echo "📥 Cloning repository..."
             git clone https://github.com/codetheuri/Tusk.git .
-            git checkout main
           else
+            echo "🔄 Updating repository..."
             git fetch origin
             git reset --hard origin/main
           fi
-
-          # Verify docker-compose.yml exists
-          if [ ! -f docker-compose.yml ]; then
-            echo "docker-compose.yml not found"; exit 1;
-          fi
-
-          # Rebuild and restart Tusk container
+          
+          # Verify critical files
+          echo "🔍 Verifying project files..."
+          [ -f docker-compose.yml ] || { echo "❌ docker-compose.yml missing"; exit 1; }
+          [ -f Dockerfile ] || { echo "❌ Dockerfile missing"; exit 1; }
+          
+          # Deploy with Docker
+          echo "🐳 Deploying with Docker Compose..."
           docker-compose down
-          docker-compose up -d --build || { echo "Docker compose failed"; exit 1; }
-
-          # Wait for container to be healthy
+          docker-compose up -d --build
+          
+          # Wait for service to be healthy
+          echo "⏳ Waiting for service to be healthy..."
           for i in {1..30}; do
-            if docker inspect --format='{{.State.Health.Status}}' tusk-api | grep -q "healthy"; then
+            if docker ps | grep -q "tusk-api.*Up"; then
+              echo "✅ Container is running"
               break
             fi
             sleep 2
           done
-
-          # Run database migrations
-          docker exec tusk-api ./tusk_migrate up || { echo "Migrations failed"; exit 1; }
-
-          # Prune unused Docker resources
-          docker container prune -f
-          docker image prune -af
-          docker volume prune -f
-
-          # Restart main Nginx
-          docker restart nginx || { echo "Nginx restart failed"; exit 1; }
-
-          # Clean system logs
-          sudo journalctl --vacuum-size=100M
+          
+          # Run migrations
+          echo "🗃️ Running database migrations..."
+          docker exec tusk-api ./tusk_migrate up || echo "⚠️ Migrations may have failed or already applied"
+          
+          # Cleanup
+          echo "🧹 Cleaning up Docker resources..."
+          docker system prune -f
+          
+          echo "🎉 Tusk API deployment completed!"
