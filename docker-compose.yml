@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "9002:8080"
+      - "9002:8081"
     environment:
       - APP_ENV=production
       - APP_NAME=${APP_NAME}
