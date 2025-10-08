@@ -113,7 +113,7 @@ jobs:
             echo "docker-compose.yml not found"; exit 1;
           fi
 
-          # Rebuild and restart Tusk container
+          # Rebuild  and restart Tusk container
           docker-compose down
           docker-compose up -d --build || { echo "Docker compose failed"; exit 1; }
 
