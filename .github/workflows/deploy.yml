@@ -51,17 +51,11 @@ jobs:
         cat ${{ github.workspace }}/.env || { echo "Failed to read .env"; exit 1; }
         echo ".env file created successfully"
 
-   # ...existing code...
-
-    - name: Copy .env to VPS
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USER }}
-        key: ${{ secrets.VPS_PRIVATE_KEY }}
-        port: ${{ secrets.VPS_PORT }}
-        source: "${{ github.workspace }}/.env"
-        target: "/var/www/html/domains/tusk/.env"
+    - name: Transfer .env to VPS
+      run: |
+        echo "Transferring .env to VPS"
+        scp -o StrictHostKeyChecking=no -P ${{ secrets.VPS_PORT }} ${{ github.workspace }}/.env ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/html/domains/tusk/.env || { echo "Failed to transfer .env"; exit 1; }
+        echo ".env transferred successfully"
 
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
@@ -84,10 +78,15 @@ jobs:
             git reset --hard origin/main
           fi
 
-          # Verify .env exists
+          # Verify .env exists and has content
           if [ ! -f .env ]; then
             echo ".env not found after transfer"; exit 1;
           fi
+          if [ ! -s .env ]; then
+            echo ".env is empty"; exit 1;
+          fi
+          echo "Verifying .env content on VPS:"
+          cat .env
 
           # Verify docker-compose.yml exists
           if [ ! -f docker-compose.yml ]; then
@@ -98,4 +97,24 @@ jobs:
           docker-compose down
           docker-compose up -d --build || { echo "Docker compose failed"; exit 1; }
 
-# ...existing code...
+          # Wait for container to be healthy
+          for i in {1..30}; do
+            if docker inspect --format='{{.State.Health.Status}}' tusk-api | grep -q "healthy"; then
+              break
+            fi
+            sleep 2
+          done
+
+          # Run database migrations
+          docker exec tusk-api ./tusk_migrate up || { echo "Migrations failed"; exit 1; }
+
+          # Prune unused Docker resources
+          docker container prune -f
+          docker image prune -af
+          docker volume prune -f
+
+          # Restart main Nginx
+          docker restart nginx || { echo "Nginx restart failed"; exit 1; }
+
+          # Clean system logs
+          sudo journalctl --vacuum-size=100M
