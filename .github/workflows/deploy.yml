@@ -51,6 +51,12 @@ jobs:
         cat ${{ github.workspace }}/.env || { echo "Failed to read .env"; exit 1; }
         echo ".env file created successfully"
 
+    - name: Transfer .env to VPS
+      run: |
+        echo "Transferring .env to VPS"
+        scp -o StrictHostKeyChecking=no -P ${{ secrets.VPS_PORT }} ${{ github.workspace }}/.env ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/html/domains/tusk/.env || { echo "Failed to transfer .env"; exit 1; }
+        echo ".env transferred successfully"
+
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -59,45 +65,9 @@ jobs:
         key: ${{ secrets.VPS_PRIVATE_KEY }}
         port: ${{ secrets.VPS_PORT }}
         script: |
-          # Test SSH connectivity
-          echo "Testing SSH connectivity"
-          whoami || { echo "SSH authentication failed"; exit 1; }
-          hostname
-
           # Ensure directory exists
           mkdir -p /var/www/html/domains/tusk
           cd /var/www/html/domains/tusk
-
-          # Create .env on VPS
-          echo "Creating .env on VPS"
-          cat << EOF > .env
-          APP_NAME=${{ vars.APP_NAME }}
-          APP_MODE=${{ vars.APP_MODE }}
-          SERVER_PORT=${{ vars.SERVER_PORT }}
-          DB_DRIVER=${{ vars.DB_DRIVER }}
-          DB_HOST=${{ vars.DB_HOST }}
-          DB_PORT=${{ vars.DB_PORT }}
-          DB_NAME=${{ vars.DB_NAME }}
-          DB_USER=${{ vars.DB_USER }}
-          DB_PASS=${{ secrets.DB_PASS }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          ACCESS_TOKEN_TTL=${{ vars.ACCESS_TOKEN_TTL }}
-          MAIL_HOST=${{ vars.MAIL_HOST }}
-          MAIL_PORT=${{ vars.MAIL_PORT }}
-          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-          MAIL_SENDER=${{ secrets.MAIL_SENDER }}
-          EOF
-
-          # Verify .env exists and has content
-          if [ ! -f .env ]; then
-            echo ".env not found after creation"; exit 1;
-          fi
-          if [ ! -s .env ]; then
-            echo ".env is empty"; exit 1;
-          fi
-          echo "Verifying .env content on VPS:"
-          cat .env
 
           # Clone repo if it doesn't exist
           if [ ! -d .git ]; then
@@ -108,12 +78,22 @@ jobs:
             git reset --hard origin/main
           fi
 
+          # Verify .env exists and has content
+          if [ ! -f .env ]; then
+            echo ".env not found after transfer"; exit 1;
+          fi
+          if [ ! -s .env ]; then
+            echo ".env is empty"; exit 1;
+          fi
+          echo "Verifying .env content on VPS:"
+          cat .env
+
           # Verify docker-compose.yml exists
           if [ ! -f docker-compose.yml ]; then
             echo "docker-compose.yml not found"; exit 1;
           fi
 
-          # Rebuild  and restart Tusk container
+          # Rebuild and restart Tusk container
           docker-compose down
           docker-compose up -d --build || { echo "Docker compose failed"; exit 1; }
 
