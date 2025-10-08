@@ -17,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o tusk cmd/main.go
 # Runtime stage
 FROM alpine:latest
 
-WORKDIR /app/
+WORKDIR /root/
 
 # Copy the binary from builder
 COPY --from=builder /app/tusk .
