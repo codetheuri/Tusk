@@ -51,6 +51,7 @@ jobs:
           APP_NAME=${{ vars.APP_NAME }}
           APP_MODE=${{ vars.APP_MODE }}
           SERVER_PORT=${{ vars.SERVER_PORT }}
+          ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
           DB_DRIVER=${{ vars.DB_DRIVER }}
           DB_HOST=${{ vars.DB_HOST }}
           DB_PORT=${{ vars.DB_PORT }}

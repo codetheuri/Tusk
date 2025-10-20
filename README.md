@@ -18,6 +18,7 @@ Tusk is a robust and opinionated starter project designed to jumpstart your API 
 * **GORM ORM:** Leverages GORM for powerful and developer-friendly Object-Relational Mapping, providing seamless database interaction and auto-migrations.
 * **Clean Architecture:** Organizes code into distinct layers (handlers, services, repositories, models) for maintainability, testability, and scalability.
 * **Authentication:** Includes a complete authentication flow (registration, login, password management) with **JWT-based** token handling and **Bcrypt** for secure password hashing.
+* **API Hardening:** Global configuration for **CORS (Cross-Origin Resource Sharing)** and security headers to ensure secure frontend-backend communication.
 * **Database Migrations:** Built-in CLI for managing database schema changes (`up`, `down`, `create`, `fresh`).
 * **Database Seeding:** CLI support for populating your database with initial data.
 * **Module Generator:** A handy CLI tool to scaffold new API modules quickly.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/codetheuri/todolist/pkg/errors"
@@ -36,6 +37,7 @@ type Config struct {
 	DBMaxIdleConns    int
 	DBMaxOpenConns    int
 	DBConnMaxLifetime int
+	CORSOrigins    []string
 
 	//mailer config
 	MailerHost     string
@@ -152,6 +154,12 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
+	corsOriginStr := os.Getenv("ALLOWED_ORIGINS")
+	if corsOriginStr != "" {
+		cfg.CORSOrigins = strings.Split(corsOriginStr, ",")
+	} else {
+		cfg.CORSOrigins = []string{}
+	}
 	//dsn based on DB driver
 	switch cfg.DBDriver {
 	case "mysql":
