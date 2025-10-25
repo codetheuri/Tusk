@@ -26,30 +26,31 @@ func NewValidator() *Validator {
 	}
 }
 
-type FieldError struct {
-	Field   string `json:"field"`
-	Message string `json:"error"`
-}
+// type FieldError struct {
+// 	Field   string `json:"field"`
+// 	Message string `json:"error"`
+// }
 
-func (v *Validator) Struct(s interface{}) []FieldError {
+func (v *Validator) Struct(s interface{}) map[string]string {
 	err := v.validate.Struct(s)
 	if err == nil {
 		return nil
 	}
-	var fieldErrors []FieldError
+	validationErrors := make(map[string]string)
 	for _, err := range err.(gv.ValidationErrors) {
-		fieldErrors = append(fieldErrors, FieldError{
-			Field:   err.Field(),
-			Message: parseTag(err),
-		})
+		validationErrors[err.Field()] = parseTag(err)
 	}
-	return fieldErrors
+	return validationErrors
 }
+	
+
 
 func parseTag(fe gv.FieldError) string {
 	switch fe.Tag() {
 	case "required":
 		return "This field is required"
+	case "unique":
+		return "This value must be unique"	
 	case "min":
 		return fmt.Sprintf("Minimum length is %s", fe.Param())
 	case "max":
