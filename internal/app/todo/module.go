@@ -8,7 +8,7 @@ import (
 	"github.com/codetheuri/todolist/pkg/middleware"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/validators"
-	"github.com/go-chi/chi"
+	"github.com/codetheuri/todolist/internal/app/routers"
 	"gorm.io/gorm"
 )
 
@@ -35,9 +35,9 @@ func NewModule(db *gorm.DB, log logger.Logger, validator *validators.Validator, 
 	}
 }
 
-func (m *Module) RegisterRoutes(r chi.Router) {
+func (m *Module) RegisterRoutes(r router.Router) {
 	// Register the routes for the todo module
-	r.Route("/todos", func(r chi.Router) {
+	r.Route("/todos", func(r router.Router) {
 		r.Use(middleware.Authenticator(m.TokenService, m.log)) // Apply authentication middleware
 		r.Post("/", m.Handlers.CreateTodo)
 		r.Get("/all", m.Handlers.GetAllIncludingDeleted)

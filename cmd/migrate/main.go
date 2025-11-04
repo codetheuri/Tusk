@@ -12,11 +12,22 @@ import (
 	"github.com/codetheuri/todolist/config"
 	"github.com/codetheuri/todolist/database/migrations"
 	"github.com/codetheuri/todolist/database/seeders"
+	"github.com/fatih/color"
 	"gorm.io/gorm"
 )
 
 var databaseURl string
 var appMode string
+
+// Color helpers
+var (
+	Green  = color.New(color.FgGreen).SprintFunc()
+	Red    = color.New(color.FgRed).SprintFunc()
+	Yellow = color.New(color.FgYellow).SprintFunc()
+	Blue   = color.New(color.FgBlue).SprintFunc()
+	Cyan   = color.New(color.FgCyan).SprintFunc()
+	Bold   = color.New(color.Bold).SprintFunc()
+)
 
 func init() {
 	cfg, err := config.LoadConfig()
@@ -37,27 +48,82 @@ func init() {
 }
 func main() {
 	upCmd := flag.NewFlagSet("up", flag.ExitOnError)
+	upCmd.Usage = func() {
+		fmt.Println("Usage: go run ./cmd/migrate up")
+		fmt.Println("Apply all pending migrations")
+		fmt.Println()
+		fmt.Println("Options:")
+		upCmd.PrintDefaults()
+	}
 	downCmd := flag.NewFlagSet("down", flag.ExitOnError)
-	createCmd := flag.NewFlagSet("create", flag.ExitOnError)
-	freshcmd := flag.NewFlagSet("fresh", flag.ExitOnError)
-	seeders := flag.NewFlagSet("seeders", flag.ExitOnError)
-
 	downSteps := downCmd.Int("steps", 1, "Number of migrations to revert")
+	downCmd.Usage = func() {
+		fmt.Println("Usage: go run ./cmd/migrate down [-steps N]")
+		fmt.Println("Roll back the last N migrations (default: 1)")
+		fmt.Println()
+		fmt.Println("Options:")
+		downCmd.PrintDefaults()
+	}
+	createCmd := flag.NewFlagSet("create", flag.ExitOnError)
 	createName := createCmd.String("name", "", "Name of the new migration (e.g create_users_table)")
+	createCmd.Usage = func() {
+		fmt.Println("Usage: go run ./cmd/migrate create -name NAME")
+		fmt.Println("Generate a new migration file")
+		fmt.Println()
+		fmt.Println("Options:")
+		createCmd.PrintDefaults()
+	}
+	freshcmd := flag.NewFlagSet("fresh", flag.ExitOnError)
+	freshcmd.Usage = func() {
+		fmt.Println("Usage: go run ./cmd/migrate fresh")
+		fmt.Println("Drop all tables and reapply all migrations (dev only)")
+		fmt.Println()
+		fmt.Println("Options:")
+		freshcmd.PrintDefaults()
+	}
+	seeders := flag.NewFlagSet("seed", flag.ExitOnError)
 	seedName := seeders.String("name", "", "Optional : Name of specific seeder to run (eg. 01UsersTableSeeder)")
+	seeders.Usage = func() {
+		fmt.Println("Usage: go run ./cmd/migrate seed [-name NAME]")
+		fmt.Println("Run all seeders, or a specific one if -name is provided")
+		fmt.Println()
+		fmt.Println("Options:")
+		seeders.PrintDefaults()
+	}
+
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
-		fmt.Println("Commands:")
-		fmt.Println("  up              Apply all pending migrations")
-		fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
-		fmt.Println("  create -name NAME Generate a new migration file")
-		fmt.Println("fresh            Drop all tables and reapply all migrations")
-		fmt.Println("seed   	  Run all registered seeders")
-		fmt.Println("seed [-name NAME] Run a specific seeder")
+		printGeneralHelp()
 		os.Exit(1)
 	}
 
 	command := os.Args[1]
+
+	// Auto-handle --help for any subcommand
+	if command == "--help" || command == "-h" {
+		printGeneralHelp()
+		os.Exit(0)
+	}
+
+	// Handle per-command --help
+	for _, arg := range os.Args[2:] {
+		if arg == "--help" || arg == "-h" {
+			switch command {
+			case "up":
+				upCmd.Usage()
+			case "down":
+				downCmd.Usage()
+			case "create":
+				createCmd.Usage()
+			case "fresh":
+				freshcmd.Usage()
+			case "seed":
+				seeders.Usage()
+			default:
+				printGeneralHelp()
+			}
+			os.Exit(0)
+		}
+	}
 
 	db, err := config.ConnectDB()
 	if err != nil {
@@ -72,7 +138,7 @@ func main() {
 	switch command {
 	case "up":
 		upCmd.Parse(os.Args[2:])
-		log.Println("Applying pending migrations ...")
+		log.Printf("%s Applying pending migrations ...\n", Cyan("→"))
 		runMigrations(db, "up")
 	case "down":
 		downCmd.Parse(os.Args[2:])
@@ -100,23 +166,46 @@ func main() {
 		runSeeders(db, *seedName)
 		log.Println("Database seeding completed.")
 	case "help":
-		fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
-		fmt.Println("Commands:")
-		fmt.Println("  up              Apply all pending migrations")
-		fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
-		fmt.Println("  create -name NAME Generate a new migration file")
-		fmt.Println("  help            Show this help message")
-		fmt.Println("  fresh           Drop all tables and reapply all migrations")
-		fmt.Println("  seed            Run all registered seeders")
-		fmt.Println("  seed -name NAME Run a specific seeder")
+		if len(os.Args) > 2 {
+			subCmd := os.Args[2]
+			switch subCmd {
+			case "up":
+				upCmd.Usage()
+			case "down":
+				downCmd.Usage()
+			case "create":
+				createCmd.Usage()
+			case "fresh":
+				freshcmd.Usage()
+			case "seed":
+				seeders.Usage()
+			default:
+				fmt.Printf("Unknown command: %s\n", subCmd)
+				printGeneralHelp()
+			}
+		} else {
+			printGeneralHelp()
+		}
 		os.Exit(0)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Available commands: up, down, create, help")
-		fmt.Println("Use 'go run ./cmd/migrate help' for more information.")
+		printGeneralHelp()
 		os.Exit(1)
 	}
+}
 
+func printGeneralHelp() {
+	fmt.Println("Usage: go run ./cmd/migrate <command> [arguments]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  up              Apply all pending migrations")
+	fmt.Println("  down [-steps N] Roll back the last N migrations (default: 1)")
+	fmt.Println("  create -name NAME Generate a new migration file")
+	fmt.Println("  fresh           Drop all tables and reapply all migrations (dev only)")
+	fmt.Println("  seed [-name NAME] Run all or specific seeder")
+	fmt.Println("  help [command]  Show help for a command")
+	fmt.Println()
+	fmt.Println("Run 'go run ./cmd/migrate <command> --help' for more details.")
 }
 
 // up or down based on direction
@@ -137,7 +226,7 @@ func runMigrations(db *gorm.DB, direction string) {
 	case "up":
 		for _, m := range migrations.RegisteredMigrations {
 			if !appliedversions[m.Version()] {
-				log.Printf("Applying migration: %s (%s)\n", m.Name(), m.Version())
+			log.Printf("%s Applying migration: %s (%s)\n", Yellow("↗"), m.Name(), m.Version())
 				if err := db.Transaction(func(tx *gorm.DB) error {
 					return m.Up(tx)
 				}); err != nil {
@@ -149,11 +238,12 @@ func runMigrations(db *gorm.DB, direction string) {
 				}).Error; err != nil {
 					log.Fatalf("Failed to record migration %s: %v", m.Name(), err)
 				}
-				log.Printf("Successfully applied migration: %s\n", m.Name())
+				log.Printf("%s Successfully applied migration: %s\n", Green("✓"), m.Name())
 			}
 		}
 		log.Printf("All pending migrations applied.")
 	case "down":
+		
 		if len(appliedMigrations) == 0 {
 			log.Println("No migrations to roll back.")
 			return
@@ -173,7 +263,8 @@ func runMigrations(db *gorm.DB, direction string) {
 		if migrationToRollback == nil {
 			log.Fatalf("Migration %s not found in registered migrations. Cannot revert", latestApplied.Version)
 		}
-		log.Printf("Reverting back migration: %s (%s)\n", migrationToRollback.Name(), migrationToRollback.Version())
+		log.Printf("Reverting back migration: %s (%s)\n",Red("↙"), migrationToRollback.Name(), migrationToRollback.Version())
+	
 		if err := db.Transaction(func(tx *gorm.DB) error {
 			return migrationToRollback.Down(tx)
 		}); err != nil {
@@ -182,7 +273,7 @@ func runMigrations(db *gorm.DB, direction string) {
 		if err := db.Where("version = ?", migrationToRollback.Version()).Delete(&migrations.SchemaMigrationModel{}).Error; err != nil {
 			log.Fatalf("Failed to remove reverted back migration record %s: ", migrationToRollback.Name())
 		}
-		log.Printf("Successfully reverted back migration: %s\n", migrationToRollback.Name())
+		log.Printf("Successfully reverted back migration: %s\n",Green("✓"), migrationToRollback.Name())
 	}
 }
 func createMigrationFile(name string) {
@@ -310,11 +401,11 @@ func runSeeders(db *gorm.DB, seederName string) {
 		log.Println("No database seeders registered.")
 		return
 	}
-    
+
 	sort.Slice(seeders.RegisteredSeeders, func(i, j int) bool {
 		return seeders.RegisteredSeeders[i].Name() < seeders.RegisteredSeeders[j].Name()
 	})
-   
+
 	for _, s := range seeders.RegisteredSeeders {
 		if seederName != "" && s.Name() != seederName {
 			log.Printf("Skipping seeder: %s (not '%s')\n", s.Name(), seederName)
@@ -326,7 +417,7 @@ func runSeeders(db *gorm.DB, seederName string) {
 		}
 		log.Printf("Seeder %s completed.", s.Name())
 	}
-    if seederName != "" {
+	if seederName != "" {
 		found := false
 		for _, s := range seeders.RegisteredSeeders {
 			if s.Name() == seederName {
@@ -335,7 +426,7 @@ func runSeeders(db *gorm.DB, seederName string) {
 			}
 		}
 		if !found {
-		log.Fatalf("Error: seeder '%s' not found ", seederName)
+			log.Fatalf("Error: seeder '%s' not found ", seederName)
 		}
 	}
 }

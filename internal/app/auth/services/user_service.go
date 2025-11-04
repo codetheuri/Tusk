@@ -46,11 +46,11 @@ func (s *userService) RegisterUser(ctx context.Context, email, password, role st
 		Password: password,
 		Role:     role,
 	}
-	validationErros := s.validator.Struct(newUser)
-	if validationErros != nil {
-		s.log.Warn("Validation failed for user registration", "err", validationErros)
-		return nil, appErrors.ValidationError("validation failed for user registration", nil, validationErros)
-	}
+	// validationErros := s.validator.Struct(newUser)
+	// if validationErros != nil {
+	// 	s.log.Warn("Validation failed for user registration", "err", validationErros)
+	// 	return nil, appErrors.ValidationError("validation failed for user registration", nil, validationErros)
+	// }
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, email)
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {

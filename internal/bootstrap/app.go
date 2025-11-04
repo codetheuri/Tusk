@@ -44,10 +44,15 @@ func Run(cfg *config.Config, log logger.Logger) error {
 	appModules = append(appModules, todoModule.NewModule(db, log, appValidator, authMod.TokenService))
 	//register routes from all modules
 	mainRouter := router.NewRouter(log)
-	for _, module := range appModules {
-		module.RegisterRoutes(mainRouter)
-	}
-
+	// for _, module := range appModules {
+	// 	module.RegisterRoutes(router)
+	// }
+   mainRouter.Route("/api", func(r router.Router) {
+		// Register routes from all modules onto this sub-router.
+		for _, module := range appModules {
+			module.RegisterRoutes(r)
+		}
+	})
 	//middleware
 	var handler http.Handler = mainRouter
 	handler = middleware.CORS(cfg.CORSOrigins, log)(handler)

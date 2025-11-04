@@ -2,6 +2,7 @@ package handlers
 
 import (
 	//	"context"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	appErrors "github.com/codetheuri/todolist/pkg/errors"
 	"github.com/codetheuri/todolist/pkg/logger"
 	"github.com/codetheuri/todolist/pkg/pagination"
+	"github.com/codetheuri/todolist/pkg/tonic"
 	"github.com/codetheuri/todolist/pkg/web"
 	"github.com/go-chi/chi"
 	"golang.org/x/crypto/bcrypt"
@@ -24,7 +26,8 @@ import (
 )
 
 type AuthHandler interface {
-	Register(w http.ResponseWriter, r *http.Request)
+	// Register(w http.ResponseWriter, r *http.Request)
+	Register(ctx context.Context, req *dto.RegisterRequest) (*tonic.Response, error)
 	Login(w http.ResponseWriter, r *http.Request)
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
 	GetUsers(w http.ResponseWriter, r *http.Request)
@@ -33,67 +36,96 @@ type AuthHandler interface {
 	RestoreUser(w http.ResponseWriter, r *http.Request)
 	Logout(w http.ResponseWriter, r *http.Request)
 }
-type authHandler struct {
+type AuthHandlers struct {
 	authServices *services.AuthService
 	log          logger.Logger
 	validator    *validators.Validator
 }
 
 // constructor for AuthHandler
-func NewAuthHandler(authServices *services.AuthService, log logger.Logger, validator *validators.Validator) AuthHandler {
-	return &authHandler{
+func NewAuthHandler(authServices *services.AuthService, log logger.Logger, validator *validators.Validator) *AuthHandlers {
+	return &AuthHandlers{
 		authServices: authServices,
 		log:          log,
 		validator:    validator,
 	}
 }
 
-func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
-	h.log.Info("Handler: Received registration request")
 
-	var req dto.RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.log.Warn("Handler: Failed to decode registration request", err)
-		web.RespondError(w, appErrors.ValidationError("invalid request payload", err, nil), http.StatusBadRequest)
-		return
-	}
-	validationErrors := h.validator.Struct(req)
-	if validationErrors != nil {
-		h.log.Warn("Handler: Validation failed for registration request", "errors", validationErrors)
-		web.RespondError(w, appErrors.ValidationError("validation failed", nil, validationErrors), http.StatusBadRequest)
-		return
-	}
+// func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
+// 	h.log.Info("Handler: Received registration request")
 
-	ctx := r.Context()
+// 	var req dto.RegisterRequest
+// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+// 		h.log.Warn("Handler: Failed to decode registration request", err)
+// 		web.RespondError(w, appErrors.ValidationError("invalid request payload", err, nil), http.StatusBadRequest)
+// 		return
+// 	}
+// 	validationErrors := h.validator.Struct(req)
+// 	if validationErrors != nil {
+// 		h.log.Warn("Handler: Validation failed for registration request", "errors", validationErrors)
+// 		web.RespondError(w, appErrors.ValidationError("validation failed", nil, validationErrors), http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	ctx := r.Context()
+// 	user, err := h.authServices.UserService.RegisterUser(ctx, req.Email, req.Password, req.Role)
+// 	if err != nil {
+// 		h.log.Error("Handler: Failed to register user through service", err, "email", req.Email)
+// 		h.handleAppError(w, err, "user registration")
+// 		return
+// 	}
+
+// 	tokenString, err := h.authServices.TokenService.GenerateToken(fmt.Sprintf("%d", user.ID), user.Role)
+// 	if err != nil {
+// 		h.log.Error("Handler: Failed to generate auth token after registration", err, "userID", user.ID)
+// 		web.RespondError(w, appErrors.InternalServerError("failed to generate authentication token", err), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	resp := dto.AuthResponse{
+// 		UserID: user.ID,
+// 		Email:  user.Email,
+// 		Role:   user.Role,
+// 		Token:  tokenString,
+
+// 		ExpiresAt: h.authServices.TokenService.GetTokenTTL().Unix(), // Access token TTL from TokenService
+// 	}
+
+// 	h.log.Info("Handler: User registered and token generated", "userID", user.ID)
+
+// 	web.RespondData(w, http.StatusCreated, resp, "User registered successfully", web.WithSuccessType("toast"))
+
+// }
+func (h *AuthHandlers) Register(ctx context.Context, req *dto.RegisterRequest) (*tonic.Response, error) {
+	h.log.Info("Handler: Processing registration request")
+
+	// 1. Service Logic (Validation already done by Adapter)
 	user, err := h.authServices.UserService.RegisterUser(ctx, req.Email, req.Password, req.Role)
 	if err != nil {
-		h.log.Error("Handler: Failed to register user through service", err, "email", req.Email)
-		h.handleAppError(w, err, "user registration")
-		return
+		return nil, err // Propagate service error
 	}
 
+	// 2. Token Generation
 	tokenString, err := h.authServices.TokenService.GenerateToken(fmt.Sprintf("%d", user.ID), user.Role)
 	if err != nil {
-		h.log.Error("Handler: Failed to generate auth token after registration", err, "userID", user.ID)
-		web.RespondError(w, appErrors.InternalServerError("failed to generate authentication token", err), http.StatusInternalServerError)
-		return
+		return nil, appErrors.InternalServerError("failed to generate authentication token", err)
 	}
+
+	// 3. Map to DTO
 	resp := dto.AuthResponse{
 		UserID: user.ID,
 		Email:  user.Email,
 		Role:   user.Role,
 		Token:  tokenString,
-
-		ExpiresAt: h.authServices.TokenService.GetTokenTTL().Unix(), // Access token TTL from TokenService
+		ExpiresAt: h.authServices.TokenService.GetTokenTTL().Unix(),
 	}
 
 	h.log.Info("Handler: User registered and token generated", "userID", user.ID)
-
-	web.RespondData(w, http.StatusCreated, resp, "User registered successfully", web.WithSuccessType("toast"))
-
+	// 4. Return Data with explicit 201 status
+	return tonic.NewCreatedResponse(resp), nil
 }
 
-func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received login request")
 
 	var req dto.LoginRequest
@@ -172,7 +204,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received GetUserProfile request")
 
 	userIDStr := chi.URLParam(r, "id")
@@ -217,7 +249,7 @@ func (h *authHandler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	web.RespondData(w, http.StatusOK, resp, "User profile retrieved successfully", web.WithoutSuccess())
 }
 
-func (h *authHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received ChangePassword request")
 	ctxUserID, ok := tokenPkg.GetUserIDFromContext(r.Context())
 	if !ok {
@@ -261,7 +293,7 @@ func (h *authHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	web.RespondMessage(w, http.StatusOK, "Password changed successfully", "success", "alert")
 }
 
-func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received DeleteUser request")
 
 	userIDStr := chi.URLParam(r, "id")
@@ -290,7 +322,7 @@ func (h *authHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *authHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) RestoreUser(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received RestoreUser request")
 
 	userIDStr := chi.URLParam(r, "id")
@@ -319,7 +351,7 @@ func (h *authHandler) RestoreUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("Handler: Received Logout request")
 
 	jti, jtiOK := tokenPkg.GetJTIFromContext(r.Context())
@@ -342,7 +374,7 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	web.RespondMessage(w, http.StatusOK, "Logged out successfully", "success", "toast")
 
 }
-func (h *authHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 	h.log.Debug("Handler: Received Get users request")
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
@@ -376,7 +408,7 @@ func (h *authHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	web.RespondListData(w, http.StatusOK, userResponses, metadata)
 }
-func (h *authHandler) handleAppError(w http.ResponseWriter, err error, action string) {
+func (h *AuthHandlers) handleAppError(w http.ResponseWriter, err error, action string) {
 	var appErr appErrors.AppError
 	if errors.As(err, &appErr) {
 		h.log.Error(fmt.Sprintf("Handler: Application error during %s", action), err, "code", appErr.Code())

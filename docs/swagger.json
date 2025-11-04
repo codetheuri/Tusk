@@ -1,0 +1,27 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "This service manages user identity, authentication, and authorization for the Tusk application.",
+        "title": "Tusk Authentication API",
+        "contact": {
+            "name": "Joseph Theuri",
+            "url": "http://www.swagger.io/support",
+            "email": "support@tuskapp.com"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8081",
+    "basePath": "/api",
+    "paths": {},
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and the JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

@@ -1,0 +1,21 @@
+basePath: /api
+host: localhost:8081
+info:
+  contact:
+    email: support@tuskapp.com
+    name: Joseph Theuri
+    url: http://www.swagger.io/support
+  description: This service manages user identity, authentication, and authorization
+    for the Tusk application.
+  title: Tusk Authentication API
+  version: 1.0.0
+paths: {}
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and the JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
