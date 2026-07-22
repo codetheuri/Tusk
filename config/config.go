@@ -7,11 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codetheuri/todolist/pkg/errors"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	"github.com/joho/godotenv"
@@ -51,7 +46,7 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	err := godotenv.Load(".env")
 	if err != nil && !os.IsNotExist(err) {
-		return nil, errors.ConfigError("Error loading .env file", err)
+		return nil, fmt.Errorf("error loading .env file: %w", err)
 	}
 	cfg := &Config{
 		DBUser: os.Getenv("DB_USER"),
@@ -81,7 +76,7 @@ func LoadConfig() (*Config, error) {
 	}
 	JWTSecret :=   os.Getenv("JWT_SECRET")
 	if JWTSecret == "" {
-		return nil, errors.ConfigError("JWT_SECRET not set in .env", nil)
+		return nil, fmt.Errorf("JWT_SECRET not set in .env")
 	}
 	 accessTokenTTLStr := os.Getenv("ACCESS_TOKEN_TTL")
     if accessTokenTTLStr == "" {
@@ -91,21 +86,21 @@ func LoadConfig() (*Config, error) {
     // Parse the duration string (e.g., "3600s", "1h", "24h")
     parsedTTL, err := time.ParseDuration(accessTokenTTLStr)
     if err != nil {
-        return nil, errors.ConfigError(fmt.Sprintf("Invalid ACCESS_TOKEN_TTL value: %s, error: %v", accessTokenTTLStr, err), err)
+        return nil, fmt.Errorf("invalid ACCESS_TOKEN_TTL value: %s, error: %w", accessTokenTTLStr, err)
     }
     cfg.AccessTokenTTL = parsedTTL
 
 	if cfg.DBDriver == "" {
-		return nil, errors.ConfigError("DB_DRIVER not set in .env", nil)
+		return nil, fmt.Errorf("DB_DRIVER not set in .env")
 	}
 	dbPortStr := os.Getenv("DB_PORT")
 	if dbPortStr == "" && cfg.DBDriver != "sqlite" {
-		return nil, errors.ConfigError("DB_PORT not set in .env for non-sqlite driver", nil)
+		return nil, fmt.Errorf("DB_PORT not set in .env for non-sqlite driver")
 	}
 	if cfg.DBDriver != "sqlite" {
 		dbPort, err := strconv.Atoi(dbPortStr)
 		if err != nil {
-			return nil, errors.ConfigError("Invalid DB_PORT value in .env", err)
+			return nil, fmt.Errorf("invalid DB_PORT value in .env: %w", err)
 		}
 		cfg.DBPort = strconv.Itoa(dbPort)
 	}
@@ -117,7 +112,7 @@ func LoadConfig() (*Config, error) {
 	}
 	serverPort, err := strconv.Atoi(serverPortStr)
 	if err != nil {
-		return nil, errors.ConfigError(fmt.Sprintf("Invalid SERVER_PORT value : %s", serverPortStr), err)
+		return nil, fmt.Errorf("invalid SERVER_PORT value %s: %w", serverPortStr, err)
 	}
 	cfg.ServerPort = serverPort
       //mail port
@@ -125,18 +120,18 @@ func LoadConfig() (*Config, error) {
      if mailerPortStr != "" { 
 		mailPort, err := strconv.Atoi(mailerPortStr)
 		if err != nil {
-			return nil, errors.ConfigError(fmt.Sprintf("Invalid MAIL_PORT value: %s", mailerPortStr), err)
+			return nil, fmt.Errorf("invalid MAIL_PORT value %s: %w", mailerPortStr, err)
 		}
 		cfg.MailerPort = mailPort
 	}
 
 	//basic validation
 	if cfg.DBDriver != "sqlite" && (cfg.DBUser == "" || cfg.DBPass == "" || cfg.DBHost == "" || cfg.DBName == "") {
-		return nil, errors.ConfigError("Missing required database configuration", nil)
+		return nil, fmt.Errorf("missing required database configuration")
 	}
 	//sqlite
 	if cfg.DBDriver == "sqlite" && cfg.DBName == "" {
-		return nil, errors.ConfigError("DB_NAME not set for sqlite driver (should be file path)", nil)
+		return nil, fmt.Errorf("DB_NAME not set for sqlite driver (should be file path)")
 	}
 	if val := os.Getenv("DB_MAX_IDLE_CONNS"); val != "" {
 		if i, err := strconv.Atoi(val); err == nil {
@@ -182,40 +177,8 @@ func LoadConfig() (*Config, error) {
 		cfg.DbURL = cfg.DBName
 
 	default:
-		return nil, errors.ConfigError(fmt.Sprintf("Unsupported DB_DRIVER: %s", cfg.DBDriver), nil)
+		return nil, fmt.Errorf("unsupported DB_DRIVER: %s", cfg.DBDriver)
 	}
 	return cfg, nil
 
 }
-
-var DB *gorm.DB
-
-func ConnectDB() (*gorm.DB, error) {
-	if DB == nil {
-		cfg, err := LoadConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load config: %w", err)
-		}
-
-		var gormDB *gorm.DB
-		switch cfg.DBDriver {
-		case "mysql":
-			gormDB, err = gorm.Open(mysql.Open(cfg.DbURL), &gorm.Config{})
-		case "postgres", "pgsql":
-			gormDB, err = gorm.Open(postgres.Open(cfg.DbURL), &gorm.Config{})
-
-		case "sqlite":
-			gormDB, err = gorm.Open(sqlite.Open(cfg.DbURL), &gorm.Config{})
-		default:
-			return nil, fmt.Errorf("unsupported DB_DRIVER: %s", cfg.DBDriver)
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to database: %w", err)
-		}
-		DB = gormDB
-	}
-	return DB, nil
-}
-
-

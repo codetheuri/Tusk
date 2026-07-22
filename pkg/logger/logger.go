@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
+	// "sync"	
 )
 
 // Logger interface for logging operations
@@ -60,11 +60,11 @@ func (l *consoleLogger) Warn(msg string, args ...any) {
 }
 
 func (l *consoleLogger) Error(msg string, err error, args ...any) {
-	formatArgs := formatArgs(args...)
+	formattedArgs := formatArgs(args...)
 	if err != nil {
-		l.stdLogger.Printf("[ERROR] %s: %v%s", msg, formatArgs, err)
+		l.stdLogger.Printf("[ERROR] %s: %v%s", msg, err, formattedArgs)
 	} else {
-		l.stdLogger.Printf("[ERROR] %s%s", msg, formatArgs)
+		l.stdLogger.Printf("[ERROR] %s%s", msg, formattedArgs)
 	}
 }
 
@@ -73,21 +73,3 @@ func (l *consoleLogger) Fatal(msg string, err error, args ...any) {
 	os.Exit(1)
 }
 
-// global logger instance
-var (
-	globalLogger Logger = NewConsoleLogger()
-	loggerMuteex sync.RWMutex
-)
-
-// GetLogger returns the global logger instance
-func GetLogger() Logger {
-	loggerMuteex.RLock()
-	defer loggerMuteex.RUnlock()
-	return globalLogger
-}
-
-func SetGlobalLogger(l Logger) {
-	loggerMuteex.Lock()
-	defer loggerMuteex.Unlock()
-	globalLogger = l
-}

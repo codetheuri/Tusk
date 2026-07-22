@@ -1,15 +1,39 @@
-# binarries and build artifacts
+# Binaries and build artifacts
+bin/
+tmp/
+main
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 *.test
+*.out
+*.html
+*.log
+build-errors.log
+coverage.out
+coverage.html
 
-# dependencies
+# Database files
+database/data/*.db
+*.sqlite
+*.db
+
+# Dependencies
 vendor/
 
-#configs
-.env 
+# Environment and Configs
+.env
+.env.local
+.env.*.local
+
+# IDE and Editor files
 .idea/
 .vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Go test cache
+.cache/

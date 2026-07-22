@@ -5,14 +5,13 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/codetheuri/todolist/config"
-	appErrors "github.com/codetheuri/todolist/pkg/errors"
-	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/tusk/config"
+	"github.com/codetheuri/tusk/pkg/logger"
 )
 
 type MailerService interface {
 	SendEmail(to []string, subject string, body string) error
-	SendWWelcomeEmail(recipientEmail string) error
+	SendWelcomeEmail(recipientEmail string) error
 }
 
 type smtpMailer struct {
@@ -30,7 +29,7 @@ func NewMailerService(cfg *config.Config, log logger.Logger) MailerService {
 func (s *smtpMailer) SendEmail(to []string, subject string, body string) error {
 	if s.cfg.MailerHost == "" || s.cfg.MailerPort == 0 || s.cfg.MailerUsername == "" || s.cfg.MailerPassword == "" {
 		s.log.Error("Mailer config is incomplete. Skipping email send.", nil)
-		return appErrors.InternalServerError("email service not fully configured", nil)
+		return fmt.Errorf("email service not fully configured")
 	}
 
 	from := s.cfg.MailerSender
@@ -50,14 +49,14 @@ func (s *smtpMailer) SendEmail(to []string, subject string, body string) error {
 	err := smtp.SendMail(addr, auth, from, to, []byte(msg))
 	if err != nil {
 		s.log.Error("Failed to send email via SMTP", err, "to", to, "subject", subject)
-		return appErrors.InternalServerError("failed to send email", err)
+		return fmt.Errorf("failed to send email: %w", err)
 	}
 
 	s.log.Info("Email sent successfully", "to", to, "subject", subject)
 	return nil
 }
 
-func (s *smtpMailer) SendWWelcomeEmail(recipientEmail string) error {
+func (s *smtpMailer) SendWelcomeEmail(recipientEmail string) error {
 	subject := "Welcome to Tusk"
 	body := "Thank you for signing up for Tusk!"
 	return s.SendEmail([]string{recipientEmail}, subject, body)

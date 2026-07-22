@@ -5,26 +5,40 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/codetheuri/todolist/config"
-	appErrors "github.com/codetheuri/todolist/pkg/errors"
-	"github.com/codetheuri/todolist/pkg/logger"
+	"github.com/codetheuri/tusk/config"
+	"github.com/codetheuri/tusk/pkg/logger"
 
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
 func NewGoRMDB(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
-
 	newLogger := NewGormLogger(log)
-	db, err := config.ConnectDB()
-	if db != nil {
 
+	var db *gorm.DB
+	var err error
+
+	switch cfg.DBDriver {
+	case "mysql":
+		db, err = gorm.Open(mysql.Open(cfg.DbURL), &gorm.Config{})
+	case "postgres", "pgsql":
+		db, err = gorm.Open(postgres.Open(cfg.DbURL), &gorm.Config{})
+	case "sqlite":
+		db, err = gorm.Open(sqlite.Open(cfg.DbURL), &gorm.Config{})
+	default:
+		return nil, fmt.Errorf("unsupported DB_DRIVER: %s", cfg.DBDriver)
+	}
+
+	if db != nil {
 		db.Logger = newLogger.LogMode(gormlogger.Info)
 	}
 
 	if err != nil {
 		log.Error("failed to connect to database", err, "dsn_info", fmt.Sprintf("user: %s, host: %s, port: %s, dbname: %s", cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName))
-		return nil, appErrors.DatabaseError("failed tp connect to database", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -36,7 +50,7 @@ func NewGoRMDB(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
 
 	if err = sqlDB.Ping(); err != nil {
 		log.Error("database is unreachable", err)
-		return nil, appErrors.DatabaseError("database is unreachable", err)
+		return nil, fmt.Errorf("database is unreachable: %w", err)
 	}
 	log.Info("Database connected successfully ")
 	return db, nil

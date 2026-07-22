@@ -1,0 +1,41 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # The binary file to execute
+  bin = "./tmp/api"
+  
+  # The build command. We point it to your cmd/api/main.go
+  cmd = "go build -o ./tmp/api ./cmd/api/main.go"
+  
+  # Delay before building after file change (ms)
+  delay = 500
+  
+  # Ignore these directories
+  exclude_dir = ["assets", "tmp", "vendor", ".agents", "docs"]
+  
+  # Ignore these file extensions
+  exclude_file = []
+  exclude_regex = ["_test.go"]
+  
+  # Watch these extensions
+  include_ext = ["go", "tpl", "tmpl", "html", "yaml", "env", "sql"]
+  
+  kill_delay = "500ms"
+  log = "build-errors.log"
+  send_interrupt = true
+  stop_on_error = true
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  time = false
+
+[misc]
+  # Delete tmp directory on exit
+  clean_on_exit = true
