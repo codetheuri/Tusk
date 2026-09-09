@@ -41,7 +41,7 @@ jobs:
       # Reading the version from go.mod keeps CI and the module in lockstep.
       # A hardcoded version silently diverges the moment go.mod is bumped.
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
           check-latest: true
