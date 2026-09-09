@@ -6,8 +6,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/query"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/query"
 	"gorm.io/gorm"
 )
 

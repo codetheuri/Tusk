@@ -1,6 +1,6 @@
 package auth
 
-import "github.com/codetheuri/tusk/pkg/authz"
+import "github.com/codetheuri/tusk/v2/pkg/authz"
 
 // Auth module permission constants to prevent raw string typos across handlers.
 const (

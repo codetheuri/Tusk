@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/codetheuri/tusk/config"
+	"github.com/codetheuri/tusk/v2/config"
 	// Import modules to trigger explicit permission registration in init()
-	"github.com/codetheuri/tusk/database"
-	_ "github.com/codetheuri/tusk/internal/auth"
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/database"
+	_ "github.com/codetheuri/tusk/v2/internal/auth"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 func main() {

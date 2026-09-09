@@ -6,10 +6,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/query"
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/query"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 type Handler struct {

@@ -4,10 +4,10 @@ package main
 import (
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/internal/auth"
-	"github.com/codetheuri/tusk/pkg/app"
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/internal/auth"
+	"github.com/codetheuri/tusk/v2/pkg/app"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 func main() {

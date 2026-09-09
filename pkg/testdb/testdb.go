@@ -38,8 +38,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/codetheuri/tusk/database"
-	"github.com/codetheuri/tusk/pkg/tenant"
+	"github.com/codetheuri/tusk/v2/database"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
 )
 
 // defaultDSN points at a local development PostgreSQL.

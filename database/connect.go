@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/tenant"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

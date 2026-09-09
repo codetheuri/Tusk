@@ -13,10 +13,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/middleware"
-	"github.com/codetheuri/tusk/pkg/query"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/middleware"
+	"github.com/codetheuri/tusk/v2/pkg/query"
 )
 
 // Service encapsulates the business logic for Identity, Auth, and RBAC.

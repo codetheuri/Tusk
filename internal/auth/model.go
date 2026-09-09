@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/id"
+	"github.com/codetheuri/tusk/v2/pkg/id"
 )
 
 // User handles core authentication data, credentials, and security state.

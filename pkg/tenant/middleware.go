@@ -6,7 +6,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 // Resolver determines the active tenant for a request.

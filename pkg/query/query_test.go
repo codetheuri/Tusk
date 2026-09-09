@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/query"
-	"github.com/codetheuri/tusk/pkg/testdb"
+	"github.com/codetheuri/tusk/v2/pkg/query"
+	"github.com/codetheuri/tusk/v2/pkg/testdb"
 )
 
 // These run against real PostgreSQL because the defect they cover — LIKE's

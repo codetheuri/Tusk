@@ -35,11 +35,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/database"
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/middleware"
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/database"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/middleware"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 // TagGroup collects related OpenAPI tags under one heading in the docs sidebar.

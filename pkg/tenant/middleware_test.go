@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/codetheuri/tusk/pkg/tenant"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
 )
 
 // serve runs one request through the middleware and reports what the handler saw.

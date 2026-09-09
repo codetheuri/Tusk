@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/session"
-	"github.com/codetheuri/tusk/pkg/testdb"
+	"github.com/codetheuri/tusk/v2/pkg/session"
+	"github.com/codetheuri/tusk/v2/pkg/testdb"
 )
 
 // These run against real PostgreSQL. Sessions are a database row whose whole

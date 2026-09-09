@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/id"
-	"github.com/codetheuri/tusk/pkg/tenant"
-	"github.com/codetheuri/tusk/pkg/testdb"
+	"github.com/codetheuri/tusk/v2/pkg/id"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
+	"github.com/codetheuri/tusk/v2/pkg/testdb"
 )
 
 // These tests run against real PostgreSQL. The thing being verified is the SQL

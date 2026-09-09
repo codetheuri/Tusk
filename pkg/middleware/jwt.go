@@ -14,9 +14,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/response"
-	"github.com/codetheuri/tusk/pkg/tenant"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
 )
 
 // Claims is the payload carried by a Tusk access token.

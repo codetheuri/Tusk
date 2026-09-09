@@ -1,4 +1,4 @@
-module github.com/codetheuri/tusk
+module github.com/codetheuri/tusk/v2
 
 go 1.25.7
 

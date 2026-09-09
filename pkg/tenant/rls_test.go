@@ -13,9 +13,9 @@ import (
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 
-	"github.com/codetheuri/tusk/pkg/id"
-	"github.com/codetheuri/tusk/pkg/tenant"
-	"github.com/codetheuri/tusk/pkg/testdb"
+	"github.com/codetheuri/tusk/v2/pkg/id"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
+	"github.com/codetheuri/tusk/v2/pkg/testdb"
 )
 
 // Row-level security is the layer that still holds when the application layer is

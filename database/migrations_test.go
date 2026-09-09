@@ -7,8 +7,8 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/codetheuri/tusk/database"
-	"github.com/codetheuri/tusk/pkg/testdb"
+	"github.com/codetheuri/tusk/v2/database"
+	"github.com/codetheuri/tusk/v2/pkg/testdb"
 )
 
 // migrationTestDB is created and dropped by this test.

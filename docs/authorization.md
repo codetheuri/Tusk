@@ -21,7 +21,7 @@ Permissions are defined in domain packages (e.g. `internal/auth/permissions.go`)
 ```go
 package auth
 
-import "github.com/codetheuri/tusk/pkg/authz"
+import "github.com/codetheuri/tusk/v2/pkg/authz"
 
 const (
     PermUsersRead   = "users.read"

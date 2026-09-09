@@ -5,7 +5,7 @@ import (
 
 	"context"
 
-	"github.com/codetheuri/tusk/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
 	"gorm.io/gorm"
 )
 

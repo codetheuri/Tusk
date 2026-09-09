@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 // recover from panics and return a 500 error

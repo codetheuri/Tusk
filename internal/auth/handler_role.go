@@ -5,7 +5,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 // CreateRole handles creating a new RBAC role (name & description).

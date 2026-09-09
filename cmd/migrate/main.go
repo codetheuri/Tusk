@@ -13,8 +13,8 @@ import (
 	// PostgreSQL driver, registered for its side effects.
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/database"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/database"
 )
 
 func main() {

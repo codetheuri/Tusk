@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/codetheuri/tusk/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
 )
 
 type CreateRoleRequest struct {

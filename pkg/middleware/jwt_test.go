@@ -14,7 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/codetheuri/tusk/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
 )
 
 const testSecret = "test-secret-key-that-is-long-enough-for-hs256"

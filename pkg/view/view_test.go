@@ -8,7 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/codetheuri/tusk/pkg/view"
+	"github.com/codetheuri/tusk/v2/pkg/view"
 )
 
 // templates returns a small but realistic set: a base wrapping the document, a

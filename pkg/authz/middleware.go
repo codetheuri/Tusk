@@ -7,7 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 // Security Requirement Helpers for Huma OpenAPI documentation.

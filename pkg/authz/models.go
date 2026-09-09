@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/id"
+	"github.com/codetheuri/tusk/v2/pkg/id"
 )
 
 // PermissionRecord represents the runtime database representation of a code permission.

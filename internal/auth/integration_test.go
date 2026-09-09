@@ -7,11 +7,11 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/id"
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/testdb"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/id"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/testdb"
 )
 
 // newTestService wires the real repository and service against a real database.

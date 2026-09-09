@@ -3,9 +3,9 @@ package auth
 import (
 	"github.com/google/uuid"
 
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/query"
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/query"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 // -------------------------------------------------------------

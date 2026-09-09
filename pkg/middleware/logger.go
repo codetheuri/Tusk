@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 func Logger(log logger.Logger) func(next http.Handler) http.Handler {
