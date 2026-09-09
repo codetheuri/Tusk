@@ -6,9 +6,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/query"
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/query"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 type Handler struct {
@@ -98,10 +99,11 @@ func (h *Handler) Logout(ctx context.Context, input *RefreshTokenInput) (*Messag
 
 // Me returns the profile and permission list of the authenticated user.
 func (h *Handler) Me(ctx context.Context, input *MeInput) (*ProfileOutput, error) {
-	userID, ok := ctx.Value("user_id").(uint)
+	sub, ok := authz.SubjectFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("Authentication required")
 	}
+	userID := sub.UserID
 
 	user, perms, err := h.service.GetCurrentUser(ctx, userID)
 	if err != nil {
@@ -118,10 +120,11 @@ func (h *Handler) Me(ctx context.Context, input *MeInput) (*ProfileOutput, error
 
 // UpdateProfile updates the personal profile of the authenticated user.
 func (h *Handler) UpdateProfile(ctx context.Context, input *UpdateProfileInput) (*ProfileOutput, error) {
-	userID, ok := ctx.Value("user_id").(uint)
+	sub, ok := authz.SubjectFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("Authentication required")
 	}
+	userID := sub.UserID
 
 	_, err := h.service.UpdateProfile(ctx, userID, input.Body.FirstName, input.Body.LastName, input.Body.Avatar, input.Body.Bio)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 type clientVisitor struct {

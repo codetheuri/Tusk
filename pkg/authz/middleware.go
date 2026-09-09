@@ -7,7 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/pkg/response"
+	"github.com/codetheuri/tusk/v2/pkg/response"
 )
 
 // Security Requirement Helpers for Huma OpenAPI documentation.
@@ -20,28 +20,19 @@ var (
 )
 
 // SubjectExtractor defines a function signature for extracting Subject from context.Context.
+//
+// It remains configurable so an application can source identity from somewhere
+// other than Tusk's own authentication middleware — a gateway header or an mTLS
+// certificate, for example.
 type SubjectExtractor func(ctx context.Context) (Subject, bool)
 
-// DefaultSubjectExtractor extracts UserID and IsSuperUser from context standard keys.
-var DefaultSubjectExtractor SubjectExtractor = func(ctx context.Context) (Subject, bool) {
-	var sub Subject
-
-	// Extract UserID
-	if uid, ok := ctx.Value("user_id").(uint); ok {
-		sub.UserID = uid
-	} else if uidInt, ok := ctx.Value("user_id").(int); ok {
-		sub.UserID = uint(uidInt)
-	} else {
-		return sub, false
-	}
-
-	// Extract IsSuperUser flag
-	if isSuper, ok := ctx.Value("is_super_user").(bool); ok {
-		sub.IsSuperUser = isSuper
-	}
-
-	return sub, true
-}
+// DefaultSubjectExtractor reads the Subject placed in context by authentication
+// middleware via WithSubject.
+//
+// It deliberately does no claim parsing of its own. Identity is resolved once,
+// at the edge, and every consumer reads the same value — so there is exactly one
+// place where "who is this?" is answered.
+var DefaultSubjectExtractor SubjectExtractor = SubjectFromContext
 
 // RequirePolicy creates a HTTP middleware that enforces any Policy rule.
 func RequirePolicy(db *gorm.DB, policy Policy) func(http.Handler) http.Handler {

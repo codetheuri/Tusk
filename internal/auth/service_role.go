@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"github.com/google/uuid"
+
 	"context"
 	"fmt"
 
-	"github.com/codetheuri/tusk/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
 )
 
 type CreateRoleRequest struct {
@@ -13,7 +15,7 @@ type CreateRoleRequest struct {
 }
 
 type UpdateRoleRequest struct {
-	ID          uint
+	ID          uuid.UUID
 	Name        *string
 	Description *string
 }
@@ -42,7 +44,7 @@ func (s *Service) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 // GetRoleByID returns a single role by ID.
-func (s *Service) GetRoleByID(ctx context.Context, id uint) (*Role, error) {
+func (s *Service) GetRoleByID(ctx context.Context, id uuid.UUID) (*Role, error) {
 	return s.repo.GetRoleByID(ctx, id)
 }
 
@@ -68,12 +70,12 @@ func (s *Service) UpdateRole(ctx context.Context, req *UpdateRoleRequest) (*Role
 }
 
 // DeleteRole removes a role from the system.
-func (s *Service) DeleteRole(ctx context.Context, id uint) error {
+func (s *Service) DeleteRole(ctx context.Context, id uuid.UUID) error {
 	return s.repo.DeleteRole(ctx, id)
 }
 
 // AddRolePermission attaches a permission string to a role.
-func (s *Service) AddRolePermission(ctx context.Context, roleID uint, permName string) error {
+func (s *Service) AddRolePermission(ctx context.Context, roleID uuid.UUID, permName string) error {
 	perm, exists := authz.DefaultRegistry().Find(permName)
 	if !exists {
 		return fmt.Errorf("permission '%s' is not a valid system permission", permName)
@@ -87,22 +89,22 @@ func (s *Service) AddRolePermission(ctx context.Context, roleID uint, permName s
 }
 
 // RemoveRolePermission detaches a permission string from a role.
-func (s *Service) RemoveRolePermission(ctx context.Context, roleID uint, permName string) error {
+func (s *Service) RemoveRolePermission(ctx context.Context, roleID uuid.UUID, permName string) error {
 	return s.repo.RemoveRolePermission(ctx, roleID, permName)
 }
 
 // AssignUserRole assigns a role to a user after checking existence.
-func (s *Service) AssignUserRole(ctx context.Context, userID uint, roleID uint) error {
+func (s *Service) AssignUserRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) error {
 	if _, err := s.repo.GetRoleByID(ctx, roleID); err != nil {
-		return fmt.Errorf("role with ID %d does not exist", roleID)
+		return fmt.Errorf("role with ID %s does not exist", roleID)
 	}
 	if _, err := s.repo.FindByID(ctx, userID); err != nil {
-		return fmt.Errorf("user with ID %d does not exist", userID)
+		return fmt.Errorf("user with ID %s does not exist", userID)
 	}
 	return s.repo.AssignUserRole(ctx, userID, roleID)
 }
 
 // RemoveUserRole revokes a role from a user.
-func (s *Service) RemoveUserRole(ctx context.Context, userID uint, roleID uint) error {
+func (s *Service) RemoveUserRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) error {
 	return s.repo.RemoveUserRole(ctx, userID, roleID)
 }

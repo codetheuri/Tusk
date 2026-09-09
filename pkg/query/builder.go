@@ -42,13 +42,18 @@ func Apply(db *gorm.DB, q Query, cfg Config) *gorm.DB {
 	}
 
 	// 2. Apply Whitelisted Multi-Column Search
+	//
+	// ILIKE, not LIKE: Tusk targets PostgreSQL exclusively (see database.migrationDir),
+	// where LIKE is case-sensitive. A search for "wanjiku" that silently misses
+	// "Wanjiku" is not a partial match with a rough edge, it is broken search —
+	// nobody searching a name or an email types the exact original casing.
 	if q.Search != "" && len(cfg.AllowedSearches) > 0 {
 		var searchConditions []string
 		var searchArgs []interface{}
 		pattern := "%" + q.Search + "%"
 
 		for _, col := range cfg.AllowedSearches {
-			searchConditions = append(searchConditions, fmt.Sprintf("%s LIKE ?", col))
+			searchConditions = append(searchConditions, fmt.Sprintf("%s ILIKE ?", col))
 			searchArgs = append(searchArgs, pattern)
 		}
 

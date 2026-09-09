@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"github.com/google/uuid"
+
 	"context"
 	"time"
 
-	"github.com/codetheuri/tusk/pkg/logger"
-	"github.com/codetheuri/tusk/pkg/query"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/query"
 	"gorm.io/gorm"
 )
 
@@ -50,7 +52,7 @@ func (r *Repository) FindByLogin(ctx context.Context, login string) (*User, erro
 }
 
 // FindByID fetches a user by primary key ID with Profile preloaded.
-func (r *Repository) FindByID(ctx context.Context, id uint) (*User, error) {
+func (r *Repository) FindByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var user User
 	if err := r.db.WithContext(ctx).Preload("Profile").First(&user, id).Error; err != nil {
 		return nil, err

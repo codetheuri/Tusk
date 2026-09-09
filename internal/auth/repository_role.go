@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"github.com/google/uuid"
+
 	"context"
 
-	"github.com/codetheuri/tusk/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
 	"gorm.io/gorm"
 )
 
@@ -29,7 +31,7 @@ func (r *Repository) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 // GetRoleByID fetches a role by its ID along with its permissions.
-func (r *Repository) GetRoleByID(ctx context.Context, id uint) (*Role, error) {
+func (r *Repository) GetRoleByID(ctx context.Context, id uuid.UUID) (*Role, error) {
 	var role Role
 	if err := r.db.WithContext(ctx).First(&role, id).Error; err != nil {
 		return nil, err
@@ -48,7 +50,7 @@ func (r *Repository) UpdateRole(ctx context.Context, role *Role) error {
 }
 
 // DeleteRole deletes a role and cascades removal from join tables.
-func (r *Repository) DeleteRole(ctx context.Context, id uint) error {
+func (r *Repository) DeleteRole(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", id).Delete(&RolePermission{}).Error; err != nil {
 			return err
@@ -70,7 +72,7 @@ func (r *Repository) EnsurePermission(ctx context.Context, name, description str
 }
 
 // AddRolePermission links a permission string to a role.
-func (r *Repository) AddRolePermission(ctx context.Context, roleID uint, permName string) error {
+func (r *Repository) AddRolePermission(ctx context.Context, roleID uuid.UUID, permName string) error {
 	rp := RolePermission{
 		RoleID:         roleID,
 		PermissionName: permName,
@@ -79,12 +81,12 @@ func (r *Repository) AddRolePermission(ctx context.Context, roleID uint, permNam
 }
 
 // RemoveRolePermission removes a permission string from a role.
-func (r *Repository) RemoveRolePermission(ctx context.Context, roleID uint, permName string) error {
+func (r *Repository) RemoveRolePermission(ctx context.Context, roleID uuid.UUID, permName string) error {
 	return r.db.WithContext(ctx).Where("role_id = ? AND permission_name = ?", roleID, permName).Delete(&RolePermission{}).Error
 }
 
 // AssignUserRole links a user to a specific role.
-func (r *Repository) AssignUserRole(ctx context.Context, userID uint, roleID uint) error {
+func (r *Repository) AssignUserRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) error {
 	ur := UserRole{
 		UserID: userID,
 		RoleID: roleID,
@@ -93,12 +95,12 @@ func (r *Repository) AssignUserRole(ctx context.Context, userID uint, roleID uin
 }
 
 // RemoveUserRole revokes a role from a user.
-func (r *Repository) RemoveUserRole(ctx context.Context, userID uint, roleID uint) error {
+func (r *Repository) RemoveUserRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) error {
 	return r.db.WithContext(ctx).Where("user_id = ? AND role_id = ?", userID, roleID).Delete(&UserRole{}).Error
 }
 
 // GetUserPermissions returns all permission strings granted to a user via assigned roles.
-func (r *Repository) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
+func (r *Repository) GetUserPermissions(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	var perms []string
 	err := r.db.WithContext(ctx).
 		Table("role_permissions").

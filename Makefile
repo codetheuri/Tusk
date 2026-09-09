@@ -1,4 +1,4 @@
-.PHONY: dev run build test coverage vet migrate-up migrate-down migrate-status clean help
+.PHONY: dev run build test test-unit test-integration test-db-setup coverage vet migrate-up migrate-down migrate-reset migrate-status auth-sync auth-sync-prune clean help
 
 # ==============================================================================
 # Development commands
@@ -18,9 +18,24 @@ build:
 	go build -o ./bin/api ./cmd/api/main.go
 	@echo "Built ./bin/api successfully!"
 
-## test: run unit tests across all packages
+## test: run all tests (integration tests skip if no database is reachable)
 test:
-	go test -v -race ./...
+	go test -race ./...
+
+## test-unit: run only tests that need no database
+test-unit:
+	go test -race -short ./config/... ./pkg/... ./internal/middleware/...
+
+## test-integration: run all tests and FAIL if the test database is unreachable
+## Requires PostgreSQL. Override the target with TEST_DATABASE_URL.
+test-integration:
+	REQUIRE_DB_TESTS=1 go test -race -count=1 ./...
+
+## test-db-setup: create the local test database (one-off)
+test-db-setup:
+	@psql "$${TEST_ADMIN_URL:-postgres://root:root@127.0.0.1:5434/postgres}" \
+		-c "CREATE DATABASE tusk_test" 2>/dev/null && echo "Created tusk_test" \
+		|| echo "tusk_test already exists (or psql is unavailable)"
 
 ## coverage: run tests and generate coverage report
 coverage:
@@ -42,6 +57,10 @@ migrate-up:
 ## migrate-down: revert the last database migration 
 migrate-down:
 	go run ./cmd/migrate/main.go down
+
+## migrate-reset: revert every migration, dropping the schema
+migrate-reset:
+	go run ./cmd/migrate/main.go reset
 
 ## migrate-status: check the status of database migrations
 migrate-status:

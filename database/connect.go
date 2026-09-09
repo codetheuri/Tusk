@@ -1,33 +1,34 @@
 package database
 
+// This file owns connecting to PostgreSQL. It sits beside the migration runner
+// deliberately: both are "the database layer", and the previous
+// internal/platform/ tier existed to hold exactly one file. Being here rather
+// than under internal/ also means an application built on Tusk can open a
+// connection configured the same way the framework does.
+
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
+	"github.com/codetheuri/tusk/v2/pkg/tenant"
 
-	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
-func NewGoRMDB(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
+func Connect(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
 	newLogger := NewGormLogger(log)
 
 	var db *gorm.DB
 	var err error
 
 	switch cfg.DBDriver {
-	case "mysql":
-		db, err = gorm.Open(mysql.Open(cfg.DbURL), &gorm.Config{})
 	case "postgres", "pgsql":
 		db, err = gorm.Open(postgres.Open(cfg.DbURL), &gorm.Config{})
-	case "sqlite":
-		db, err = gorm.Open(sqlite.Open(cfg.DbURL), &gorm.Config{})
 	default:
 		return nil, fmt.Errorf("unsupported DB_DRIVER: %s", cfg.DBDriver)
 	}
@@ -52,6 +53,17 @@ func NewGoRMDB(cfg *config.Config, log logger.Logger) (*gorm.DB, error) {
 		log.Error("database is unreachable", err)
 		return nil, fmt.Errorf("database is unreachable: %w", err)
 	}
+
+	// Installed for every application, single- and multi-tenant alike. The
+	// callbacks return immediately for models that do not implement
+	// tenant.Tenanted, so an application that opts nothing in pays nothing and
+	// behaves exactly as it did before. Registering here rather than leaving it
+	// to each application means a tenanted model cannot be added later and
+	// silently go unscoped because someone forgot a line of wiring.
+	if err := tenant.Register(db); err != nil {
+		return nil, fmt.Errorf("failed to register tenant callbacks: %w", err)
+	}
+
 	log.Info("Database connected successfully ")
 	return db, nil
 }

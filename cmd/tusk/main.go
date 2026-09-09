@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/codetheuri/tusk/config"
+	"github.com/codetheuri/tusk/v2/config"
 	// Import modules to trigger explicit permission registration in init()
-	_ "github.com/codetheuri/tusk/internal/auth"
-	appDatabase "github.com/codetheuri/tusk/internal/platform/database"
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/database"
+	_ "github.com/codetheuri/tusk/v2/internal/auth"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func handleAuthCommand(args []string) {
 			log.Fatal("Failed to load configuration", err)
 		}
 
-		db, err := appDatabase.NewGoRMDB(cfg, log)
+		db, err := database.Connect(cfg, log)
 		if err != nil {
 			log.Fatal("Failed to connect to database", err)
 		}

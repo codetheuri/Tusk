@@ -6,9 +6,9 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/pkg/authz"
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/pkg/authz"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 func RegisterRoutes(api huma.API, db *gorm.DB, cfg *config.Config, log logger.Logger) {
@@ -38,7 +38,7 @@ func RegisterRoutes(api huma.API, db *gorm.DB, cfg *config.Config, log logger.Lo
 		Path:        "/api/v1/auth/login",
 		Summary:     "Login user",
 		Description: "Authenticates a user via flexible single field (username, email, or phone) and returns Access + Refresh tokens.",
-		Tags:        []string{"Authentication"} ,
+		Tags:        []string{"Authentication"},
 	}, handler.Login)
 
 	huma.Register(api, huma.Operation{

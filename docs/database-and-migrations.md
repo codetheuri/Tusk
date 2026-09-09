@@ -6,7 +6,7 @@ Tusk uses **[GORM](https://gorm.io/)** for ORM operations and database connectiv
 
 ## Database Connection Management
 
-Database connections are initialized in `internal/platform/database/gorm.go`. Connection settings (driver, host, port, pool sizes) are loaded directly from `.env`.
+Database connections are initialized in `database/connect.go`. Connection settings (driver, host, port, pool sizes) are loaded directly from `.env`.
 
 ---
 

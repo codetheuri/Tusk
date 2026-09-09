@@ -5,8 +5,8 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/pkg/logger"
+	"github.com/codetheuri/tusk/v2/config"
+	"github.com/codetheuri/tusk/v2/pkg/logger"
 )
 
 type MailerService interface {
