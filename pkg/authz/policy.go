@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // Subject represents the authenticated user context performing an action.
 type Subject struct {
-	UserID      uint
+	UserID      uuid.UUID
 	IsSuperUser bool
 }
 
@@ -40,7 +41,7 @@ func (e *Evaluator) IsAuthorized(ctx context.Context, sub Subject, policy Policy
 }
 
 // UserHasPermission queries whether a user possesses a specific permission through any assigned role.
-func (e *Evaluator) UserHasPermission(ctx context.Context, userID uint, permission string) (bool, error) {
+func (e *Evaluator) UserHasPermission(ctx context.Context, userID uuid.UUID, permission string) (bool, error) {
 	var count int64
 	err := e.db.WithContext(ctx).Table("user_roles").
 		Joins("JOIN role_permissions ON role_permissions.role_id = user_roles.role_id").

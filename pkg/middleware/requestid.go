@@ -7,6 +7,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// contextKey is a private named type for context keys owned by this package.
+//
+// The distinction that matters: a *named* type like this is safe, because
+// context lookups compare the key's type as well as its value — no other package
+// can construct a middleware.contextKey. An *untyped* string literal such as
+// ctx.Value("user_id") is not safe, because any package writing that same literal
+// collides silently. Both look similar at the call site; only one of them works.
+type contextKey string
+
 const (
 	RequestIDKey contextKey = "requestID"
 )

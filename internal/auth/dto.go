@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"github.com/google/uuid"
+
 	"github.com/codetheuri/tusk/pkg/authz"
 	"github.com/codetheuri/tusk/pkg/query"
 	"github.com/codetheuri/tusk/pkg/response"
@@ -108,7 +110,7 @@ type CreateRoleInput struct {
 }
 
 type UpdateRoleInput struct {
-	ID   uint `path:"id" doc:"Role ID"`
+	ID   uuid.UUID `path:"id" doc:"Role ID"`
 	Body struct {
 		Name        *string `json:"name,omitempty" minLength:"2" doc:"Updated name of the role"`
 		Description *string `json:"description,omitempty" doc:"Updated description"`
@@ -116,7 +118,7 @@ type UpdateRoleInput struct {
 }
 
 type RoleIDInput struct {
-	ID uint `path:"id" doc:"Role ID"`
+	ID uuid.UUID `path:"id" doc:"Role ID"`
 }
 
 type RoleData struct {
@@ -138,27 +140,27 @@ type RolesOutput struct {
 }
 
 type AddRolePermissionInput struct {
-	ID   uint `path:"id" doc:"Role ID"`
+	ID   uuid.UUID `path:"id" doc:"Role ID"`
 	Body struct {
 		PermissionName string `json:"permission_name" doc:"Permission string to attach (e.g., users.read)"`
 	}
 }
 
 type RemoveRolePermissionInput struct {
-	ID             uint   `path:"id" doc:"Role ID"`
-	PermissionName string `path:"permission_name" doc:"Permission string to remove"`
+	ID             uuid.UUID `path:"id" doc:"Role ID"`
+	PermissionName string    `path:"permission_name" doc:"Permission string to remove"`
 }
 
 type AssignUserRoleInput struct {
-	UserID uint `path:"user_id" doc:"User ID"`
+	UserID uuid.UUID `path:"user_id" doc:"User ID"`
 	Body   struct {
-		RoleID uint `json:"role_id" doc:"Role ID to assign"`
+		RoleID uuid.UUID `json:"role_id" doc:"Role ID to assign"`
 	}
 }
 
 type RemoveUserRoleInput struct {
-	UserID uint `path:"user_id" doc:"User ID"`
-	RoleID uint `path:"role_id" doc:"Role ID to revoke"`
+	UserID uuid.UUID `path:"user_id" doc:"User ID"`
+	RoleID uuid.UUID `path:"role_id" doc:"Role ID to revoke"`
 }
 
 type MessageOutput struct {

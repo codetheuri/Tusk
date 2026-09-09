@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
-	// "sync"	
+	// "sync"
 )
 
 // Logger interface for logging operations
@@ -29,20 +29,20 @@ func NewConsoleLogger() Logger {
 	}
 }
 
-//format args
+// format args
 func formatArgs(args ...any) string {
 	if len(args) == 0 {
 		return ""
 	}
 	var parts []string
-	for i := 0; i< len(args); i += 2 {
+	for i := 0; i < len(args); i += 2 {
 		key := fmt.Sprintf("%v", args[i])
 		if i+1 < len(args) {
 			value := fmt.Sprintf("%v", args[i+1])
 			parts = append(parts, fmt.Sprintf("%s=%s", key, value))
-	}else {
-		 parts = append(parts, fmt.Sprintf("%s=<no-value>",key))
-	}
+		} else {
+			parts = append(parts, fmt.Sprintf("%s=<no-value>", key))
+		}
 	}
 	return " " + strings.Join(parts, ", ")
 }
@@ -72,4 +72,3 @@ func (l *consoleLogger) Fatal(msg string, err error, args ...any) {
 	l.Error(msg, err, args...)
 	os.Exit(1)
 }
-

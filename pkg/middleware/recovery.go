@@ -5,9 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	
 	"github.com/codetheuri/tusk/pkg/logger"
-	
 )
 
 // recover from panics and return a 500 error
@@ -18,7 +16,7 @@ func Recovery(log logger.Logger) func(next http.Handler) http.Handler {
 				if rcvErr := recover(); rcvErr != nil {
 					//log thr panic
 					var actualErr error
-					if e,  ok := rcvErr.(error); ok {
+					if e, ok := rcvErr.(error); ok {
 						actualErr = e
 					} else {
 						actualErr = fmt.Errorf("%v", rcvErr)

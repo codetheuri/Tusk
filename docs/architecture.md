@@ -122,21 +122,22 @@ Infrastructure drivers that are decoupled from specific business logic belong in
 
 ---
 
-### 2. Cross-Cutting Middleware (`internal/middleware/`)
-HTTP request lifecycle handlers and security controls belong in `internal/middleware/`:
+### 2. Cross-Cutting Middleware (`pkg/middleware/`)
+HTTP request lifecycle handlers and security controls belong in `pkg/middleware/`. Under `pkg/` rather than `internal/` because a service built on Tusk needs the same chain, and Go's `internal/` rule would make it unreachable from another module:
 
-- **Rate Limiter**: `internal/middleware/ratelimit.go` (uses `pkg/cache` or Redis sliding window token bucket).
-- **Tracing / OpenTelemetry Middleware**: `internal/middleware/tracing.go` (attaches trace context to incoming HTTP requests).
-- **Metrics Middleware**: `internal/middleware/metrics.go` (promhttp / request latency metrics).
+- **Rate Limiter**: `pkg/middleware/ratelimit.go` (uses `pkg/cache` or Redis sliding window token bucket).
+- **Tracing / OpenTelemetry Middleware**: `pkg/middleware/tracing.go` (attaches trace context to incoming HTTP requests).
+- **Metrics Middleware**: `pkg/middleware/metrics.go` (promhttp / request latency metrics).
 
 ---
 
-### 3. Core Server Lifecycle & Platform (`internal/platform/`)
-Third-party client initializers and server lifecycle management belong in `internal/platform/`:
+### 3. Core Server Lifecycle (`pkg/app/`, `database/`)
+Server assembly and third-party client initialization:
 
-- **Redis Client Initialization**: `internal/platform/redis/redis.go`
-- **Graceful Shutdown**: `internal/app/app.go` (trapping `SIGINT`/`SIGTERM` to gracefully stop HTTP server, queue workers, and close DB/Redis pools).
-- **OpenTelemetry Provider Init**: `internal/platform/telemetry/tracer.go`
+- **Application shell**: `pkg/app/app.go` — router, middleware chain, health endpoints, Huma configuration, graceful shutdown (`SIGINT`/`SIGTERM`). It registers **no routes of its own**; callers register modules against `App.API()`.
+- **Database connection**: `database/connect.go`, beside the migration runner.
+- **Redis Client Initialization**: `pkg/redis/redis.go`
+- **OpenTelemetry Provider Init**: `pkg/telemetry/tracer.go`
 
 ---
 

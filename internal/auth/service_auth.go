@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"github.com/google/uuid"
+
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -12,8 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/codetheuri/tusk/config"
-	"github.com/codetheuri/tusk/internal/middleware"
 	"github.com/codetheuri/tusk/pkg/authz"
+	"github.com/codetheuri/tusk/pkg/middleware"
 	"github.com/codetheuri/tusk/pkg/query"
 )
 
@@ -159,7 +161,7 @@ func (s *Service) Logout(ctx context.Context, rawRefreshToken string) error {
 }
 
 // GetCurrentUser returns the user model (with preloaded Profile) and permissions for the authenticated user.
-func (s *Service) GetCurrentUser(ctx context.Context, userID uint) (*User, []string, error) {
+func (s *Service) GetCurrentUser(ctx context.Context, userID uuid.UUID) (*User, []string, error) {
 	user, err := s.repo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("user not found: %w", err)
@@ -174,7 +176,7 @@ func (s *Service) GetCurrentUser(ctx context.Context, userID uint) (*User, []str
 }
 
 // UpdateProfile updates the authenticated user's personal identity profile details.
-func (s *Service) UpdateProfile(ctx context.Context, userID uint, firstName, lastName, avatar, bio string) (*UserProfile, error) {
+func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, firstName, lastName, avatar, bio string) (*UserProfile, error) {
 	user, err := s.repo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -213,6 +215,9 @@ func (s *Service) generateAccessToken(user *User) (string, error) {
 	expiry := time.Now().Add(s.cfg.AccessTokenTTL)
 	claims := middleware.Claims{
 		UserID: user.ID,
+		// Carried in the token so authorization does not need a database round-trip
+		// on every request. See middleware.Claims for the revocation tradeoff.
+		IsSuperUser: user.IsSuperUser,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiry),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -222,7 +227,7 @@ func (s *Service) generateAccessToken(user *User) (string, error) {
 	return token.SignedString([]byte(s.cfg.JWTSecret))
 }
 
-func (s *Service) issueRefreshToken(ctx context.Context, userID uint) (string, error) {
+func (s *Service) issueRefreshToken(ctx context.Context, userID uuid.UUID) (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err

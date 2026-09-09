@@ -12,14 +12,38 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      # Integration tests run against a real PostgreSQL. SQLite is not used as a
+      # stand-in: it diverges on row-level security, partial indexes and ON
+      # CONFLICT semantics — precisely the behaviour worth testing.
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tusk_test
+        ports:
+          - 5432:5432
+        # Without a health check the test step can start before Postgres accepts
+        # connections, producing an intermittent failure that looks like a bug in
+        # the code rather than a race in the workflow.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Reading the version from go.mod keeps CI and the module in lockstep.
+      # A hardcoded version silently diverges the moment go.mod is bumped.
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.x'
+          go-version-file: 'go.mod'
           check-latest: true
 
       - name: Verify dependencies
@@ -28,5 +52,14 @@ jobs:
       - name: Build packages
         run: go build -v ./...
 
+      - name: Vet
+        run: go vet ./...
+
       - name: Run tests
+        env:
+          TEST_DATABASE_URL: "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=tusk_test sslmode=disable TimeZone=UTC"
+          # Integration tests skip when no database is reachable, which is correct
+          # locally but disastrous here — a green build would mean nothing was
+          # tested. This turns a skip into a failure.
+          REQUIRE_DB_TESTS: "1"
         run: go test -v -race ./...

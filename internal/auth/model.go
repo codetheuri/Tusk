@@ -2,11 +2,16 @@ package auth
 
 import (
 	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/codetheuri/tusk/pkg/id"
 )
 
 // User handles core authentication data, credentials, and security state.
 type User struct {
-	ID                  uint       `json:"id" gorm:"primaryKey"`
+	ID                  uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	Username            string     `json:"username" gorm:"uniqueIndex;not null"`
 	Email               string     `json:"email" gorm:"uniqueIndex;not null"`
 	Phone               *string    `json:"phone,omitempty" gorm:"uniqueIndex"`
@@ -24,9 +29,22 @@ type User struct {
 	Profile *UserProfile `json:"profile,omitempty" gorm:"foreignKey:UserID"`
 }
 
+// BeforeCreate assigns an identifier when the caller has not supplied one.
+//
+// The zero check is the important part, not the assignment: a client that
+// generated its own ID while offline must keep it, because that ID may already be
+// referenced by other records it created before it could reach the server.
+// Overwriting it here would break those references silently.
+func (u *User) BeforeCreate(*gorm.DB) error {
+	if id.IsZero(u.ID) {
+		u.ID = id.New()
+	}
+	return nil
+}
+
 // UserProfile stores personal identity information.
 type UserProfile struct {
-	UserID    uint      `json:"user_id" gorm:"primaryKey"`
+	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid;primaryKey"`
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
 	Avatar    string    `json:"avatar"`
@@ -37,17 +55,24 @@ type UserProfile struct {
 
 // RefreshToken stores hashed refresh tokens for session management and revocation.
 type RefreshToken struct {
-	ID        uint       `json:"id" gorm:"primaryKey"`
-	UserID    uint       `json:"user_id" gorm:"not null;index"`
+	ID        uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
+	UserID    uuid.UUID  `json:"user_id" gorm:"type:uuid;not null;index"`
 	TokenHash string     `json:"-" gorm:"uniqueIndex;not null"`
 	ExpiresAt time.Time  `json:"expires_at" gorm:"not null"`
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+func (r *RefreshToken) BeforeCreate(*gorm.DB) error {
+	if id.IsZero(r.ID) {
+		r.ID = id.New()
+	}
+	return nil
+}
+
 // Role represents a security role containing permissions.
 type Role struct {
-	ID          uint      `json:"id" gorm:"primaryKey"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	Name        string    `json:"name" gorm:"uniqueIndex;not null"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -55,16 +80,23 @@ type Role struct {
 	Permissions []string  `json:"permissions,omitempty" gorm:"-"`
 }
 
+func (r *Role) BeforeCreate(*gorm.DB) error {
+	if id.IsZero(r.ID) {
+		r.ID = id.New()
+	}
+	return nil
+}
+
 // RolePermission defines the join table linking roles to permissions.
 type RolePermission struct {
-	RoleID         uint   `gorm:"primaryKey"`
-	PermissionName string `gorm:"primaryKey"`
+	RoleID         uuid.UUID `gorm:"type:uuid;primaryKey"`
+	PermissionName string    `gorm:"primaryKey"`
 	CreatedAt      time.Time
 }
 
 // UserRole defines the join table linking users to roles.
 type UserRole struct {
-	UserID    uint `gorm:"primaryKey"`
-	RoleID    uint `gorm:"primaryKey"`
+	UserID    uuid.UUID `gorm:"type:uuid;primaryKey"`
+	RoleID    uuid.UUID `gorm:"type:uuid;primaryKey"`
 	CreatedAt time.Time
 }

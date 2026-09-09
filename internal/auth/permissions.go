@@ -4,17 +4,17 @@ import "github.com/codetheuri/tusk/pkg/authz"
 
 // Auth module permission constants to prevent raw string typos across handlers.
 const (
-	PermUsersRead              = "users.read"
-	PermUsersCreate            = "users.create"
-	PermUsersUpdate            = "users.update"
-	PermUsersDelete            = "users.delete"
-	PermRolesRead              = "roles.read"
-	PermRolesCreate            = "roles.create"
-	PermRolesUpdate            = "roles.update"
-	PermRolesDelete            = "roles.delete"
+	PermUsersRead             = "users.read"
+	PermUsersCreate           = "users.create"
+	PermUsersUpdate           = "users.update"
+	PermUsersDelete           = "users.delete"
+	PermRolesRead             = "roles.read"
+	PermRolesCreate           = "roles.create"
+	PermRolesUpdate           = "roles.update"
+	PermRolesDelete           = "roles.delete"
 	PermRolePermissionsManage = "roles.permissions.manage"
-	PermUserRolesManage        = "users.roles.manage"
-	PermPermissionsRead        = "permissions.read"
+	PermUserRolesManage       = "users.roles.manage"
+	PermPermissionsRead       = "permissions.read"
 )
 
 // Permissions exported by the auth module.

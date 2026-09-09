@@ -108,7 +108,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 func TestJWTMiddleware_Authenticate(t *testing.T) {
 	secret := "super-secret-key"
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
-		UserID: 1,
+		UserID: testUserID(1),
 		Role:   "admin",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
@@ -118,8 +118,8 @@ func TestJWTMiddleware_Authenticate(t *testing.T) {
 
 	handler := Authenticate(secret)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uid := GetUserID(r.Context())
-		if uid != 1 {
-			t.Errorf("expected user_id 1 in context, got %d", uid)
+		if uid != testUserID(1) {
+			t.Errorf("expected user_id %s in context, got %s", testUserID(1), uid)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))

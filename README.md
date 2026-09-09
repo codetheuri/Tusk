@@ -20,6 +20,7 @@ Explore the full documentation guides in the [`docs/`](docs/) directory:
 - 🗄️ **[Database & Migrations](docs/database-and-migrations.md)** - GORM connectivity, seeder tools, and schema migration CLI (`cmd/migrate`).
 - 🔍 **[Querying, Filtering & Pagination](docs/querying-and-pagination.md)** - Dynamic searching, sorting, field filtering, and metadata envelopes (`pkg/query`).
 - 📬 **[Standardized Responses & Error Handling](docs/responses-and-errors.md)** - Uniform JSON response structure (`pkg/response`) and status code conventions.
+- 🗺️ **[Roadmap & Known Gaps](docs/roadmap.md)** - Production hardening backlog, planned UUIDv7 keys, optional multi-tenancy, and server-rendered page support.
 
 ---
 
