@@ -157,9 +157,21 @@ func ConnectWith(t *testing.T, opts Options) *gorm.DB {
 		return nil
 	}
 
-	if err := migrator.Up(sqlDB); err != nil {
+	// Serialise from here, before migrating. go test runs packages as separate
+	// processes against one database, and migrating is as much a change to the
+	// shared schema as truncating is: with the lock taken only afterwards, the
+	// first run after a new migration raced — two packages applied it at once,
+	// and the loser failed with "column ... already exists".
+	lockDatabase(t, sqlDB)
+	fail := func(format string, args ...any) {
+		t.Helper()
+		unlockDatabase()
 		_ = sqlDB.Close()
-		t.Fatalf("failed to migrate test database: %v", err)
+		t.Fatalf(format, args...)
+	}
+
+	if err := migrator.Up(sqlDB); err != nil {
+		fail("failed to migrate test database: %v", err)
 		return nil
 	}
 
@@ -169,8 +181,7 @@ func ConnectWith(t *testing.T, opts Options) *gorm.DB {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		_ = sqlDB.Close()
-		t.Fatalf("failed to open gorm connection: %v", err)
+		fail("failed to open gorm connection: %v", err)
 		return nil
 	}
 
@@ -178,13 +189,9 @@ func ConnectWith(t *testing.T, opts Options) *gorm.DB {
 	// therefore running the same callbacks production does, which is what makes
 	// them evidence that tenancy stays inert.
 	if err := tenant.Register(gormDB); err != nil {
-		_ = sqlDB.Close()
-		t.Fatalf("failed to register tenant callbacks: %v", err)
+		fail("failed to register tenant callbacks: %v", err)
 		return nil
 	}
-
-	// Serialise before the first TRUNCATE, release after the last one.
-	lockDatabase(t, sqlDB)
 
 	Truncate(t, gormDB)
 	t.Cleanup(func() {
