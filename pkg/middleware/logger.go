@@ -48,3 +48,12 @@ func (lrw *loggingResponseWriter) WriteHeader(code int) {
 	lrw.statusCode = code
 	lrw.ResponseWriter.WriteHeader(code)
 }
+
+// Unwrap returns the writer underneath, so http.ResponseController can reach
+// the connection through this middleware: extend a write deadline, flush,
+// take over the connection. Without it every handler behind the logger is
+// stuck with the server's WriteTimeout, and a long download (an APK over a
+// slow connection takes half an hour) is cut off part way.
+func (lrw *loggingResponseWriter) Unwrap() http.ResponseWriter {
+	return lrw.ResponseWriter
+}
