@@ -109,7 +109,12 @@ func New(opts Options) (*App, error) {
 	// Recovery above the handlers so a panic becomes a 500 rather than killing the
 	// process; rate limiting and the body cap before any handler allocates memory
 	// on behalf of an unauthenticated caller.
-	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitBurst, cfg.RateLimitRPS, log)
+	trusted, err := middleware.ParseTrustedProxies(cfg.TrustedProxies)
+	if err != nil {
+		return nil, fmt.Errorf("TRUSTED_PROXIES: %w", err)
+	}
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitBurst, cfg.RateLimitRPS, log,
+		middleware.WithTrustedProxies(trusted))
 
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logger(log))

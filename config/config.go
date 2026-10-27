@@ -46,6 +46,13 @@ type Config struct {
 	RateLimitBurst float64 // bucket capacity — how large a spike is tolerated
 	RateLimitRPS   float64 // sustained refill rate, requests per second
 
+	// TrustedProxies lists the addresses and CIDR ranges allowed to say who
+	// the client is in X-Forwarded-For, comma-separated. Empty means nobody:
+	// the connection's own address is the client. Behind a reverse proxy,
+	// name it (or the private network the service is published on), or
+	// every client shares the proxy's one allowance.
+	TrustedProxies string
+
 	// DocsEnabled controls whether /docs and /openapi.json are served.
 	// Defaults to false in production. API endpoints are unaffected either way.
 	DocsEnabled bool
@@ -195,6 +202,7 @@ func LoadConfig() (*Config, error) {
 	// --- Rate limiting ---
 	cfg.RateLimitBurst = float64(envInt("RATE_LIMIT_BURST", 30))
 	cfg.RateLimitRPS = float64(envInt("RATE_LIMIT_RPS", 10))
+	cfg.TrustedProxies = os.Getenv("TRUSTED_PROXIES")
 
 	// --- API documentation ---
 	// Off by default in production; on by default everywhere else. An explicit
